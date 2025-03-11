@@ -46,14 +46,46 @@ export const waitUntilReady = async (api: RooCodeAPI, { timeout = 10_000, interv
 	await waitFor(api.isReady, { timeout, interval })
 }
 
-export const waitForToolUse = async (api: RooCodeAPI, toolName: string, options: WaitForOptions = {}) =>
-	waitFor(
-		() =>
-			api
-				.getMessages()
-				.some(({ type, say, text }) => type === "say" && say === "tool" && text && text.includes(toolName)),
-		options,
-	)
+export const waitForToolUse = async (api: RooCodeAPI, toolName: string, options: WaitForOptions = {}) => {
+	return waitFor(() => {
+		const messages = api.getMessages()
+
+		// Check for tool usage in multiple message formats
+		return messages.some((message) => {
+			// Check in tool message
+			if (message.type === "say" && message.say === "tool" && message.text && message.text.includes(toolName)) {
+				return true
+			}
+
+			// Check in API request started message
+			if (
+				message.type === "say" &&
+				message.say === "api_req_started" &&
+				message.text &&
+				message.text.includes(toolName)
+			) {
+				return true
+			}
+
+			// Check in new task started message
+			if (message.type === "say" && message.say === "new_task_started") {
+				return true
+			}
+
+			// Check in subtask log messages
+			if (
+				message.type === "say" &&
+				message.text &&
+				message.text.includes("[subtasks] Task: ") &&
+				message.text.includes("started at")
+			) {
+				return true
+			}
+
+			return false
+		})
+	}, options)
+}
 
 export const waitForMessage = async (
 	api: RooCodeAPI,

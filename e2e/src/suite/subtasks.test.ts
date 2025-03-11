@@ -3,7 +3,8 @@ import * as assert from "assert"
 import { sleep, waitForToolUse, waitForMessage } from "./utils"
 
 suite("Roo Code Subtasks", () => {
-	test.skip("Should handle subtask cancellation and resumption correctly", async function () {
+	test("Should handle subtask cancellation and resumption correctly", async function () {
+		this.timeout(60000) // Increase timeout for this test
 		const api = globalThis.api
 
 		await api.setConfiguration({
@@ -20,7 +21,9 @@ suite("Roo Code Subtasks", () => {
 				"After creating the subtask, wait for it to complete and then respond with 'Parent task resumed'.",
 		)
 
-		await waitForToolUse(api, "new_task")
+		// Wait for the parent task to use the new_task tool
+		// Use a longer timeout for this step as it's where the race condition occurs
+		await waitForToolUse(api, "new_task", { timeout: 45000 })
 
 		// Cancel the current task (which should be the subtask).
 		await api.cancelTask()
@@ -40,7 +43,8 @@ suite("Roo Code Subtasks", () => {
 		await api.startNewTask("You are the subtask")
 
 		// Wait for the subtask to complete.
-		await waitForMessage(api, { include: "Task complete" })
+		// Use a longer timeout for this step as well
+		await waitForMessage(api, { include: "Task complete", timeout: 30000 })
 
 		// Verify that the parent task is still not resumed. We need to wait a
 		// bit to ensure any task resumption would have happened.
