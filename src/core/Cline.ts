@@ -10,7 +10,8 @@ import getFolderSize from "get-folder-size"
 import * as path from "path"
 import { serializeError } from "serialize-error"
 import * as vscode from "vscode"
-
+import { InstructionsRegistry } from "../services/instructions/InstructionsRegistry"
+import { standardSections } from "../services/instructions/sections"
 import { ApiHandler, buildApiHandler } from "../api"
 import { ApiStream } from "../api/transform/stream"
 import { DIFF_VIEW_URI_SCHEME, DiffViewProvider } from "../integrations/editor/DiffViewProvider"
@@ -122,6 +123,8 @@ export class Cline {
 	apiConversationHistory: (Anthropic.MessageParam & { ts?: number })[] = []
 	clineMessages: ClineMessage[] = []
 	rooIgnoreController?: RooIgnoreController
+	private instructionsRegistry: InstructionsRegistry
+	private instructionsRegistryInitialized: boolean = false
 	private askResponse?: ClineAskResponse
 	private askResponseText?: string
 	private askResponseImages?: string[]
@@ -185,6 +188,36 @@ export class Cline {
 		this.browserSession = new BrowserSession(provider.context)
 		this.customInstructions = customInstructions
 		this.diffEnabled = enableDiff ?? false
+		// Initialize instructions registry
+		this.instructionsRegistry = new InstructionsRegistry()
+
+		// Register standard sections and MCP server sections
+		import("../services/instructions/sections")
+			.then((sections) => {
+				// Register standard sections
+				standardSections.forEach((section) => {
+					try {
+						this.instructionsRegistry.registerSection(section)
+					} catch (error) {
+						// Section might already be registered
+						console.debug(`Failed to register section ${section.id}:`, error)
+					}
+				})
+
+				// Register MCP server sections
+				const mcpHub = provider.getMcpHub()
+				if (mcpHub) {
+					sections.registerMcpServerSections(this.instructionsRegistry, mcpHub)
+				}
+
+				// Mark registry as initialized
+				this.instructionsRegistryInitialized = true
+				console.debug("Instructions registry initialization complete")
+			})
+			.catch((error) => {
+				console.error("Failed to register instruction sections:", error)
+			})
+
 		this.fuzzyMatchThreshold = fuzzyMatchThreshold ?? 1.0
 		this.providerRef = new WeakRef(provider)
 		this.diffViewProvider = new DiffViewProvider(cwd)
@@ -1366,6 +1399,10 @@ export class Cline {
 							const modeName = getModeBySlug(mode, customModes)?.name ?? mode
 							return `[${block.name} in ${modeName} mode: '${message}']`
 						}
+						case "get_instructions":
+							return `[${block.name} for section '${block.params.section}']`
+						default:
+							return `[${block.name}]`
 					}
 				}
 
@@ -2751,6 +2788,50 @@ export class Cline {
 							break
 						}
 					}
+					case "get_instructions": {
+						const section = block.params.section
+						if (!section) {
+							this.consecutiveMistakeCount++
+							pushToolResult(
+								await this.sayAndCreateMissingParamError("get_instructions" as ToolName, "section"),
+							)
+							break
+						}
+						this.consecutiveMistakeCount = 0
+						try {
+							// Check if the registry is fully initialized
+							if (!this.instructionsRegistryInitialized) {
+								pushToolResult(
+									`Error: Instructions registry is still initializing. Please try again in a moment.`,
+								)
+								break
+							}
+
+							const context = {
+								cwd: cwd,
+								mode: (await this.providerRef.deref()?.getState())?.mode,
+								mcpHub: this.providerRef.deref()?.getMcpHub(),
+								diffStrategy: this.diffStrategy,
+								// other relevant context properties
+							}
+
+							const content = await this.instructionsRegistry.getSection(section, context)
+							if (!content) {
+								const availableSections = this.instructionsRegistry.getSectionIds()
+								pushToolResult(
+									`Error: Section '${section}' not found. Available sections: ${availableSections.join(", ")}`,
+								)
+								break
+							}
+
+							pushToolResult(content)
+						} catch (error) {
+							const errorMessage = error instanceof Error ? error.message : String(error)
+							pushToolResult(`Error retrieving instructions: ${errorMessage}`)
+							await handleError("retrieving instructions", error)
+						}
+						break
+					}
 					case "ask_followup_question": {
 						const question: string | undefined = block.params.question
 						try {
@@ -2846,6 +2927,7 @@ export class Cline {
 					case "new_task": {
 						const mode: string | undefined = block.params.mode
 						const message: string | undefined = block.params.message
+
 						try {
 							if (block.partial) {
 								const partialMessage = JSON.stringify({
@@ -2855,66 +2937,73 @@ export class Cline {
 								})
 								await this.ask("tool", partialMessage, block.partial).catch(() => {})
 								break
-							} else {
-								if (!mode) {
-									this.consecutiveMistakeCount++
-									pushToolResult(await this.sayAndCreateMissingParamError("new_task", "mode"))
-									break
-								}
-								if (!message) {
-									this.consecutiveMistakeCount++
-									pushToolResult(await this.sayAndCreateMissingParamError("new_task", "message"))
-									break
-								}
-								this.consecutiveMistakeCount = 0
+							}
 
-								// Verify the mode exists
-								const targetMode = getModeBySlug(
-									mode,
-									(await this.providerRef.deref()?.getState())?.customModes,
-								)
-								if (!targetMode) {
-									pushToolResult(formatResponse.toolError(`Invalid mode: ${mode}`))
-									break
-								}
-
-								// Show what we're about to do
-								const toolMessage = JSON.stringify({
-									tool: "newTask",
-									mode: targetMode.name,
-									content: message,
-								})
-
-								const didApprove = await askApproval("tool", toolMessage)
-								if (!didApprove) {
-									break
-								}
-
-								// before switching roo mode (currently a global settings), save the current mode so we can
-								// resume the parent task (this Cline instance) later with the same mode
-								const currentMode =
-									(await this.providerRef.deref()?.getState())?.mode ?? defaultModeSlug
-								this.pausedModeSlug = currentMode
-
-								// Switch mode first, then create new task instance
-								await this.providerRef.deref()?.handleModeSwitch(mode)
-								// wait for mode to actually switch in UI and in State
-								await delay(500) // delay to allow mode change to take effect before next tool is executed
-								this.providerRef
-									.deref()
-									?.log(`[subtasks] Task: ${this.taskNumber} creating new task in '${mode}' mode`)
-								await this.providerRef.deref()?.initClineWithSubTask(message)
-								pushToolResult(
-									`Successfully created new task in ${targetMode.name} mode with message: ${message}`,
-								)
-								// set the isPaused flag to true so the parent task can wait for the sub-task to finish
-								this.isPaused = true
+							// Parameter validation
+							if (!mode) {
+								this.consecutiveMistakeCount++
+								pushToolResult(await this.sayAndCreateMissingParamError("new_task", "mode"))
 								break
 							}
+
+							if (!message) {
+								this.consecutiveMistakeCount++
+								pushToolResult(await this.sayAndCreateMissingParamError("new_task", "message"))
+								break
+							}
+
+							this.consecutiveMistakeCount = 0
+
+							// Verify the mode exists
+							const targetMode = getModeBySlug(
+								mode,
+								(await this.providerRef.deref()?.getState())?.customModes,
+							)
+
+							if (!targetMode) {
+								pushToolResult(formatResponse.toolError(`Invalid mode: ${mode}`))
+								break
+							}
+
+							// Show what we're about to do
+							const toolMessage = JSON.stringify({
+								tool: "newTask",
+								mode: targetMode.name,
+								content: message,
+							})
+
+							const didApprove = await askApproval("tool", toolMessage)
+							if (!didApprove) {
+								break
+							}
+
+							// Before switching roo mode (currently a global settings), save the current mode so we can
+							// resume the parent task (this Cline instance) later with the same mode
+							const currentMode = (await this.providerRef.deref()?.getState())?.mode ?? defaultModeSlug
+							this.pausedModeSlug = currentMode
+
+							// Switch mode first, then create new task instance
+							await this.providerRef.deref()?.handleModeSwitch(mode)
+
+							// Wait for mode to actually switch in UI and in State
+							await delay(500) // delay to allow mode change to take effect before next tool is executed
+
+							this.providerRef
+								.deref()
+								?.log(`[subtasks] Task: ${this.taskNumber} creating new task in '${mode}' mode`)
+
+							await this.providerRef.deref()?.initClineWithSubTask(message)
+
+							pushToolResult(
+								`Successfully created new task in ${targetMode.name} mode with message: ${message}`,
+							)
+
+							// Set the isPaused flag to true so the parent task can wait for the sub-task to finish
+							this.isPaused = true
 						} catch (error) {
 							await handleError("creating new task", error)
-							break
 						}
+						break
 					}
 
 					case "attempt_completion": {

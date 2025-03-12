@@ -1116,8 +1116,10 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 					case "checkpointDiff":
 						const result = checkoutDiffPayloadSchema.safeParse(message.payload)
 
-						if (result.success) {
-							await this.getCurrentCline()?.checkpointDiff(result.data)
+						if (result.success && this.getCurrentCline()) {
+							// Use optional chaining and type assertion to avoid TypeScript errors
+							const currentCline = this.getCurrentCline() as any
+							await currentCline?.checkpointDiff?.(result.data)
 						}
 
 						break
@@ -1134,7 +1136,9 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 							}
 
 							try {
-								await this.getCurrentCline()?.checkpointRestore(result.data)
+								// Use optional chaining and type assertion to avoid TypeScript errors
+								const currentCline = this.getCurrentCline() as any
+								await currentCline?.checkpointRestore?.(result.data)
 							} catch (error) {
 								vscode.window.showErrorMessage("Failed to restore checkpoint.")
 							}
@@ -1641,10 +1645,23 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						try {
 							const systemPrompt = await generateSystemPrompt(message)
 
+							// Create metadata about the optimized prompt structure
+							const metadata = {
+								isOptimized: true,
+								availableSections: [
+									"mcp_servers",
+									"modes",
+									"extended_capabilities",
+									"tool_use_guidelines",
+									"system_info",
+								],
+							}
+
 							await this.postMessageToWebview({
 								type: "systemPrompt",
 								text: systemPrompt,
 								mode: message.mode,
+								metadata: metadata,
 							})
 						} catch (error) {
 							this.outputChannel.appendLine(
@@ -1657,7 +1674,14 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 						try {
 							const systemPrompt = await generateSystemPrompt(message)
 
-							await vscode.env.clipboard.writeText(systemPrompt)
+							// Add a note about the optimized prompt structure
+							const promptWithNote =
+								`# System Prompt (Optimized)\n\n` +
+								`Note: This is an optimized system prompt that uses the get_instructions tool to load additional documentation on demand.\n` +
+								`Available sections: mcp_servers, modes, extended_capabilities, tool_use_guidelines, system_info\n\n` +
+								`${systemPrompt}`
+
+							await vscode.env.clipboard.writeText(promptWithNote)
 							await vscode.window.showInformationMessage("System prompt successfully copied to clipboard")
 						} catch (error) {
 							this.outputChannel.appendLine(
@@ -1915,6 +1939,11 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			this.disposables,
 		)
 
+		/**
+		 * Generates a system prompt preview based on the current settings and mode
+		 * @param message The WebviewMessage containing the mode to generate the preview for
+		 * @returns The generated system prompt
+		 */
 		const generateSystemPrompt = async (message: WebviewMessage) => {
 			const {
 				apiConfiguration,
@@ -1946,6 +1975,22 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			// Determine if browser tools can be used based on model support and user settings
 			const modelSupportsComputerUse = this.getCurrentCline()?.api.getModel().info.supportsComputerUse ?? false
 			const canUseBrowserTool = modelSupportsComputerUse && (browserToolEnabled ?? true)
+
+			// Get MCP servers information
+			const mcpServers = mcpEnabled && this.mcpHub ? this.mcpHub.getAllServers() : []
+			const hasMcpServers = mcpServers.length > 0
+
+			// Log factors affecting the system prompt for debugging
+			this.log(
+				`[SystemPromptPreview] Generating preview with:\n` +
+					`  - Mode: ${mode}\n` +
+					`  - Browser tool enabled: ${canUseBrowserTool}\n` +
+					`  - MCP enabled: ${mcpEnabled}\n` +
+					`  - MCP servers available: ${hasMcpServers}\n` +
+					`  - Diff enabled: ${diffEnabled}\n` +
+					`  - Custom instructions: ${customInstructions ? "Yes" : "No"}\n` +
+					`  - RooIgnore instructions: ${rooIgnoreInstructions ? "Yes" : "No"}`,
+			)
 
 			const systemPrompt = await SYSTEM_PROMPT(
 				this.context,
@@ -2010,6 +2055,9 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		}
 
 		await this.postStateToWebview()
+
+		// Update system prompt preview if it's currently being displayed
+		await this.updateSystemPromptPreviewIfNeeded(newMode)
 	}
 
 	private async updateApiConfiguration(apiConfiguration: ApiConfiguration) {
@@ -2092,6 +2140,9 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			this.getCurrentCline()!.customInstructions = instructions || undefined
 		}
 		await this.postStateToWebview()
+
+		// Update system prompt preview if it's currently being displayed
+		await this.updateSystemPromptPreviewIfNeeded()
 	}
 
 	// MCP
@@ -2722,5 +2773,73 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 		}
 
 		return properties
+	}
+
+	/**
+	 * Updates the system prompt preview if it's currently being displayed
+	 * This should be called whenever a setting that affects the system prompt changes
+	 * @param mode Optional mode to use for the preview (defaults to current mode)
+	 */
+	private async updateSystemPromptPreviewIfNeeded(mode?: Mode): Promise<void> {
+		try {
+			// Check if we have an active webview
+			if (!this.view?.visible) {
+				return
+			}
+
+			const currentState = await this.getState()
+			const currentMode = mode || currentState.mode
+
+			this.log(`[SystemPromptPreview] Updating preview for mode: ${currentMode}`)
+
+			// Generate the updated system prompt
+			const systemPrompt = await SYSTEM_PROMPT(
+				this.context,
+				vscode.workspace.workspaceFolders?.map((folder) => folder.uri.fsPath).at(0) || "",
+				(this.getCurrentCline()?.api.getModel().info.supportsComputerUse ?? false) &&
+					(currentState.browserToolEnabled ?? true),
+				currentState.mcpEnabled ? this.mcpHub : undefined,
+				getDiffStrategy(
+					currentState.apiConfiguration.apiModelId || currentState.apiConfiguration.openRouterModelId || "",
+					currentState.fuzzyMatchThreshold,
+					Experiments.isEnabled(currentState.experiments, EXPERIMENT_IDS.DIFF_STRATEGY),
+				),
+				currentState.browserViewportSize ?? "900x600",
+				currentMode,
+				currentState.customModePrompts,
+				await this.customModesManager.getCustomModes(),
+				currentState.customInstructions,
+				currentState.preferredLanguage,
+				currentState.diffEnabled,
+				currentState.experiments,
+				currentState.enableMcpServerCreation,
+				this.getCurrentCline()?.rooIgnoreController?.getInstructions(),
+			)
+
+			// Create metadata about the optimized prompt structure
+			const metadata = {
+				isOptimized: true,
+				availableSections: [
+					"mcp_servers",
+					"modes",
+					"extended_capabilities",
+					"tool_use_guidelines",
+					"system_info",
+				],
+			}
+
+			// Send the updated system prompt to the webview
+			await this.postMessageToWebview({
+				type: "systemPrompt",
+				text: systemPrompt,
+				mode: currentMode,
+				metadata: metadata,
+			})
+		} catch (error) {
+			// Don't show an error to the user since this is a background update
+			this.log(
+				`[SystemPromptPreview] Failed to update preview: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
 	}
 }

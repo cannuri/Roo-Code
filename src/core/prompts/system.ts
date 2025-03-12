@@ -12,6 +12,7 @@ import {
 import { DiffStrategy } from "../diff/DiffStrategy"
 import { McpHub } from "../../services/mcp/McpHub"
 import { getToolDescriptionsForMode } from "./tools"
+import { getGetInstructionsDescription } from "./tools/get-instructions"
 import * as vscode from "vscode"
 import {
 	getRulesSection,
@@ -54,12 +55,17 @@ async function generatePrompt(
 	const modeConfig = getModeBySlug(mode, customModeConfigs) || modes.find((m) => m.slug === mode) || modes[0]
 	const roleDefinition = promptComponent?.roleDefinition || modeConfig.roleDefinition
 
-	const [modesSection, mcpServersSection] = await Promise.all([
-		getModesSection(context),
-		modeConfig.groups.some((groupEntry) => getGroupName(groupEntry) === "mcp")
-			? getMcpServersSection(mcpHub, effectiveDiffStrategy, enableMcpServerCreation)
-			: Promise.resolve(""),
-	])
+	// Keep only essential sections in the main prompt
+	// The optimized prompt includes:
+	// 1. Role definition
+	// 2. Tool use section with essential tools (including get_instructions)
+	// 3. Core capabilities
+	// 4. Rules
+	// 5. Objective
+	// 6. Custom instructions
+
+	// Other sections like detailed MCP documentation, all modes information, etc.
+	// will be available through the get_instructions tool
 
 	const basePrompt = `${roleDefinition}
 
@@ -78,17 +84,21 @@ ${getToolDescriptionsForMode(
 
 ${getToolUseGuidelinesSection()}
 
-${mcpServersSection}
-
 ${getCapabilitiesSection(cwd, supportsComputerUse, mcpHub, effectiveDiffStrategy)}
-
-${modesSection}
 
 ${getRulesSection(cwd, supportsComputerUse, effectiveDiffStrategy, experiments)}
 
 ${getSystemInfoSection(cwd, mode, customModeConfigs)}
 
 ${getObjectiveSection()}
+
+${await getMcpServersSection(mcpHub, effectiveDiffStrategy, enableMcpServerCreation)}
+
+NOTE: Additional detailed documentation is available through the get_instructions tool.
+Use <get_instructions><section>section_name</section></get_instructions> to access:
+- Available modes (section="modes")
+- Additional capabilities (section="extended_capabilities")
+- And more
 
 ${await addCustomInstructions(promptComponent?.customInstructions || modeConfig.customInstructions || "", globalCustomInstructions || "", cwd, mode, { preferredLanguage, rooIgnoreInstructions })}`
 
@@ -163,3 +173,5 @@ ${await addCustomInstructions(promptComponent?.customInstructions || currentMode
 		rooIgnoreInstructions,
 	)
 }
+
+// console.log("SYSTEM PROMPT FILE")

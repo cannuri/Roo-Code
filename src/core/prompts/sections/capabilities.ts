@@ -25,7 +25,7 @@ CAPABILITIES
 	}${
 		mcpHub
 			? `
-- You have access to MCP servers that may provide additional tools and resources. Each server may provide different capabilities that you can use to accomplish tasks more effectively.
+- You have access to MCP servers that may provide additional tools and resources. Each server may provide different capabilities that you can use to accomplish tasks more effectively. Use the \`get_instructions\` tool with section="mcp_servers" to get detailed information about available MCP servers and how to use them.
 `
 			: ""
 	}`

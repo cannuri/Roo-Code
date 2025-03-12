@@ -55,7 +55,7 @@ type PromptsViewProps = {
 
 // Helper to get group name regardless of format
 function getGroupName(group: GroupEntry): ToolGroup {
-	return Array.isArray(group) ? group[0] : group
+	return Array.isArray(group) ? (group[0] as ToolGroup) : (group as ToolGroup)
 }
 
 const PromptsView = ({ onDone }: PromptsViewProps) => {
@@ -355,6 +355,12 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 		}
 	}, [enableCustomModeCreation])
 
+	// State for system prompt metadata
+	const [systemPromptMetadata, setSystemPromptMetadata] = useState<{
+		isOptimized?: boolean
+		availableSections?: string[]
+	} | null>(null)
+
 	useEffect(() => {
 		const handler = (event: MessageEvent) => {
 			const message = event.data
@@ -367,6 +373,8 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 				if (message.text) {
 					setSelectedPromptContent(message.text)
 					setSelectedPromptTitle(`System Prompt (${message.mode} mode)`)
+					// Store metadata if available
+					setSystemPromptMetadata(message.metadata || null)
 					setIsDialogOpen(true)
 				}
 			}
@@ -1480,6 +1488,42 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 								<span className="codicon codicon-close"></span>
 							</VSCodeButton>
 							<h2 style={{ margin: "0 0 16px" }}>{selectedPromptTitle}</h2>
+
+							{/* Display metadata about optimized structure if available */}
+							{systemPromptMetadata?.isOptimized && (
+								<div
+									style={{
+										padding: "8px 12px",
+										marginBottom: "16px",
+										backgroundColor: "var(--vscode-editorInfo-background)",
+										border: "1px solid var(--vscode-editorInfo-border)",
+										borderRadius: "4px",
+									}}>
+									<div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+										Optimized System Prompt
+									</div>
+									<p style={{ margin: "0 0 8px" }}>
+										This is an optimized system prompt that uses the <code>get_instructions</code>{" "}
+										tool to load additional documentation on demand.
+									</p>
+									{systemPromptMetadata.availableSections &&
+										systemPromptMetadata.availableSections.length > 0 && (
+											<div>
+												<div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+													Available sections:
+												</div>
+												<ul style={{ margin: "0", paddingLeft: "20px" }}>
+													{systemPromptMetadata.availableSections.map((section) => (
+														<li key={section}>
+															<code>{section}</code>
+														</li>
+													))}
+												</ul>
+											</div>
+										)}
+								</div>
+							)}
+
 							<pre
 								style={{
 									padding: "8px",

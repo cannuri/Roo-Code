@@ -88,6 +88,10 @@ export interface ExtensionMessage {
 	slug?: string
 	success?: boolean
 	values?: Record<string, any>
+	metadata?: {
+		isOptimized?: boolean
+		availableSections?: string[]
+	}
 }
 
 export interface ApiConfigMeta {

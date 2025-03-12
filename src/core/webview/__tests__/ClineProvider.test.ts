@@ -1125,6 +1125,270 @@ describe("ClineProvider", () => {
 			)
 		})
 
+		test("system prompt includes metadata about optimized structure", async () => {
+			// Setup mock state
+			jest.spyOn(provider, "getState").mockResolvedValue({
+				apiConfiguration: {
+					apiProvider: "openrouter",
+					apiModelId: "test-model",
+				},
+				customModePrompts: {},
+				mode: "code",
+				mcpEnabled: true,
+				browserViewportSize: "900x600",
+				diffEnabled: true,
+				fuzzyMatchThreshold: 0.8,
+				experiments: experimentDefault,
+				browserToolEnabled: true,
+			} as any)
+
+			// Mock SYSTEM_PROMPT function
+			const mockSystemPrompt = "This is a test system prompt"
+			jest.spyOn(require("../../../core/prompts/system"), "SYSTEM_PROMPT").mockResolvedValue(mockSystemPrompt)
+
+			// Get the message handler
+			const webview = { onDidReceiveMessage: jest.fn() }
+			provider["setWebviewMessageListener"](webview as any)
+			const handler = webview.onDidReceiveMessage.mock.calls[0][0]
+
+			// Create a mock postMessageToWebview function
+			const mockPostMessage = jest.fn()
+			provider.postMessageToWebview = mockPostMessage
+
+			// Call the handler with a getSystemPrompt message
+			await handler({ type: "getSystemPrompt", mode: "code" })
+
+			// Verify the response includes metadata
+			expect(mockPostMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "systemPrompt",
+					text: mockSystemPrompt,
+					mode: "code",
+					metadata: expect.objectContaining({
+						isOptimized: true,
+						availableSections: expect.arrayContaining([
+							"mcp_servers",
+							"modes",
+							"extended_capabilities",
+							"tool_use_guidelines",
+							"system_info",
+						]),
+					}),
+				}),
+			)
+		})
+
+		test("copySystemPrompt includes optimization notes", async () => {
+			// Setup mock state
+			jest.spyOn(provider, "getState").mockResolvedValue({
+				apiConfiguration: {
+					apiProvider: "openrouter",
+					apiModelId: "test-model",
+				},
+				customModePrompts: {},
+				mode: "code",
+				mcpEnabled: true,
+				browserViewportSize: "900x600",
+				diffEnabled: true,
+				fuzzyMatchThreshold: 0.8,
+				experiments: experimentDefault,
+				browserToolEnabled: true,
+			} as any)
+
+			// Mock SYSTEM_PROMPT function
+			const mockSystemPrompt = "This is a test system prompt"
+			jest.spyOn(require("../../../core/prompts/system"), "SYSTEM_PROMPT").mockResolvedValue(mockSystemPrompt)
+
+			// Mock clipboard write
+			const mockClipboardWrite = jest.fn()
+			vscode.env.clipboard.writeText = mockClipboardWrite
+
+			// Mock window.showInformationMessage
+			const mockShowInfo = jest.fn()
+			vscode.window.showInformationMessage = mockShowInfo
+
+			// Get the message handler
+			const webview = { onDidReceiveMessage: jest.fn() }
+			provider["setWebviewMessageListener"](webview as any)
+			const handler = webview.onDidReceiveMessage.mock.calls[0][0]
+
+			// Call the handler with a copySystemPrompt message
+			await handler({ type: "copySystemPrompt", mode: "code" })
+
+			// Verify clipboard content includes optimization notes
+			expect(mockClipboardWrite).toHaveBeenCalledWith(expect.stringContaining("# System Prompt (Optimized)"))
+			expect(mockClipboardWrite).toHaveBeenCalledWith(expect.stringContaining("get_instructions tool"))
+			expect(mockClipboardWrite).toHaveBeenCalledWith(expect.stringContaining("Available sections:"))
+			expect(mockShowInfo).toHaveBeenCalledWith("System prompt successfully copied to clipboard")
+		})
+
+		test("includes metadata in system prompt response", async () => {
+			// Setup Cline instance with mocked api.getModel()
+			const { Cline } = require("../../Cline")
+			const mockCline = new Cline()
+			mockCline.api = {
+				getModel: jest.fn().mockReturnValue({
+					id: "claude-3-sonnet",
+					info: { supportsComputerUse: true },
+				}),
+			}
+			await provider.addClineToStack(mockCline)
+
+			// Mock getState to return necessary data
+			jest.spyOn(provider, "getState").mockResolvedValue({
+				apiConfiguration: {
+					apiProvider: "openrouter",
+					apiModelId: "test-model",
+					openRouterModelInfo: { supportsComputerUse: true },
+				},
+				customModePrompts: {},
+				mode: "code",
+				mcpEnabled: true,
+				browserViewportSize: "900x600",
+				diffEnabled: true,
+				fuzzyMatchThreshold: 0.8,
+				experiments: experimentDefault,
+				browserToolEnabled: true,
+			} as any)
+
+			// Trigger getSystemPrompt
+			const handler = getMessageHandler()
+			await handler({ type: "getSystemPrompt", mode: "code" })
+
+			// Verify postMessage was called with metadata
+			expect(mockPostMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "systemPrompt",
+					text: expect.any(String),
+					mode: "code",
+					metadata: expect.objectContaining({
+						isOptimized: true,
+						availableSections: expect.arrayContaining(["mcp_servers", "modes", "extended_capabilities"]),
+					}),
+				}),
+			)
+		})
+
+		test("copySystemPrompt includes optimization notes", async () => {
+			// Setup Cline instance
+			const { Cline } = require("../../Cline")
+			const mockCline = new Cline()
+			mockCline.api = {
+				getModel: jest.fn().mockReturnValue({
+					id: "claude-3-sonnet",
+					info: { supportsComputerUse: true },
+				}),
+			}
+			await provider.addClineToStack(mockCline)
+
+			// Mock clipboard write
+			const clipboardWriteSpy = jest.spyOn(vscode.env.clipboard, "writeText")
+			clipboardWriteSpy.mockResolvedValue(undefined)
+
+			// Trigger copySystemPrompt
+			await provider.resolveWebviewView(mockWebviewView)
+			const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+			await messageHandler({ type: "copySystemPrompt", mode: "code" })
+
+			// Verify clipboard content includes optimization notes
+			expect(clipboardWriteSpy).toHaveBeenCalledWith(expect.stringContaining("# System Prompt (Optimized)"))
+			expect(clipboardWriteSpy).toHaveBeenCalledWith(expect.stringContaining("get_instructions tool"))
+			expect(clipboardWriteSpy).toHaveBeenCalledWith(expect.stringContaining("Available sections:"))
+		})
+
+		test("includes metadata in system prompt response", async () => {
+			// Setup Cline instance with mocked api.getModel()
+			const { Cline } = require("../../Cline")
+			const mockCline = new Cline()
+			mockCline.api = {
+				getModel: jest.fn().mockReturnValue({
+					id: "claude-3-sonnet",
+					info: { supportsComputerUse: true },
+				}),
+			}
+			await provider.addClineToStack(mockCline)
+
+			// Mock getState to return necessary data
+			jest.spyOn(provider, "getState").mockResolvedValue({
+				apiConfiguration: {
+					apiProvider: "openrouter",
+					apiModelId: "test-model",
+					openRouterModelInfo: { supportsComputerUse: true },
+				},
+				customModePrompts: {},
+				mode: "code",
+				mcpEnabled: true,
+				browserViewportSize: "900x600",
+				diffEnabled: true,
+				fuzzyMatchThreshold: 0.8,
+				experiments: experimentDefault,
+				browserToolEnabled: true,
+			} as any)
+
+			// Trigger getSystemPrompt
+			const handler = getMessageHandler()
+			await handler({ type: "getSystemPrompt", mode: "code" })
+
+			// Verify postMessage was called with metadata
+			expect(mockPostMessage).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: "systemPrompt",
+					text: expect.any(String),
+					mode: "code",
+					metadata: expect.objectContaining({
+						isOptimized: true,
+						availableSections: expect.arrayContaining(["mcp_servers", "modes", "extended_capabilities"]),
+					}),
+				}),
+			)
+		})
+
+		test("updates system prompt preview when mode changes", async () => {
+			// Setup Cline instance
+			const { Cline } = require("../../Cline")
+			const mockCline = new Cline()
+			mockCline.api = {
+				getModel: jest.fn().mockReturnValue({
+					id: "claude-3-sonnet",
+					info: { supportsComputerUse: true },
+				}),
+			}
+			await provider.addClineToStack(mockCline)
+
+			// Mock SYSTEM_PROMPT to track calls with different modes
+			const systemPromptModule = require("../../prompts/system")
+			const systemPromptSpy = jest.spyOn(systemPromptModule, "SYSTEM_PROMPT")
+
+			// First get system prompt for code mode
+			await provider.resolveWebviewView(mockWebviewView)
+			const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+			await messageHandler({ type: "getSystemPrompt", mode: "code" })
+
+			// Verify SYSTEM_PROMPT was called with code mode
+			expect(systemPromptSpy).toHaveBeenCalled()
+
+			// Get the actual arguments passed to SYSTEM_PROMPT
+			const callArgs = systemPromptSpy.mock.calls[0]
+
+			// Verify the mode parameter (7th parameter, index 6)
+			expect(callArgs[6]).toBe("code")
+
+			// Reset mock
+			systemPromptSpy.mockClear()
+
+			// Now get system prompt for architect mode
+			await messageHandler({ type: "getSystemPrompt", mode: "architect" })
+
+			// Verify SYSTEM_PROMPT was called with architect mode
+			expect(systemPromptSpy).toHaveBeenCalled()
+
+			// Get the actual arguments passed to SYSTEM_PROMPT
+			const architectCallArgs = systemPromptSpy.mock.calls[0]
+
+			// Verify the mode parameter (7th parameter, index 6)
+			expect(architectCallArgs[6]).toBe("architect")
+		})
+
 		test("handles errors gracefully", async () => {
 			// Mock SYSTEM_PROMPT to throw an error
 			const systemPrompt = require("../../prompts/system")
@@ -1951,6 +2215,298 @@ describe("ClineProvider", () => {
 				}),
 			)
 		})
+	})
+})
+
+describe("System Prompt Preview", () => {
+	let provider: ClineProvider
+	let mockContext: vscode.ExtensionContext
+	let mockOutputChannel: vscode.OutputChannel
+	let mockWebviewView: vscode.WebviewView
+	let mockPostMessage: jest.Mock
+
+	beforeEach(() => {
+		// Reset mocks
+		jest.clearAllMocks()
+
+		// Mock context
+		mockContext = {
+			extensionPath: "/test/path",
+			extensionUri: {} as vscode.Uri,
+			globalState: {
+				get: jest.fn().mockImplementation((key: string) => {
+					switch (key) {
+						case "mode":
+							return "code"
+						case "currentApiConfigName":
+							return "test-config"
+						default:
+							return undefined
+					}
+				}),
+				update: jest.fn(),
+				keys: jest.fn().mockReturnValue([]),
+			},
+			secrets: {
+				get: jest.fn(),
+				store: jest.fn(),
+				delete: jest.fn(),
+			},
+			subscriptions: [],
+			extension: {
+				packageJSON: { version: "1.0.0" },
+			},
+			globalStorageUri: {
+				fsPath: "/test/storage/path",
+			},
+		} as unknown as vscode.ExtensionContext
+
+		// Mock output channel
+		mockOutputChannel = {
+			appendLine: jest.fn(),
+			clear: jest.fn(),
+			dispose: jest.fn(),
+		} as unknown as vscode.OutputChannel
+
+		// Mock webview
+		mockPostMessage = jest.fn()
+		mockWebviewView = {
+			webview: {
+				postMessage: mockPostMessage,
+				html: "",
+				options: {},
+				onDidReceiveMessage: jest.fn(),
+				asWebviewUri: jest.fn(),
+			},
+			visible: true,
+			onDidDispose: jest.fn().mockImplementation((callback) => {
+				callback()
+				return { dispose: jest.fn() }
+			}),
+			onDidChangeVisibility: jest.fn().mockImplementation((callback) => {
+				return { dispose: jest.fn() }
+			}),
+		} as unknown as vscode.WebviewView
+
+		provider = new ClineProvider(mockContext, mockOutputChannel)
+	})
+
+	test("getSystemPrompt should include metadata about optimized structure", async () => {
+		// Setup Cline instance with mocked api.getModel()
+		const { Cline } = require("../../Cline")
+		const mockCline = new Cline()
+		mockCline.api = {
+			getModel: jest.fn().mockReturnValue({
+				id: "claude-3-sonnet",
+				info: { supportsComputerUse: true },
+			}),
+		}
+		await provider.addClineToStack(mockCline)
+
+		// Mock SYSTEM_PROMPT to return a test prompt
+		const systemPromptModule = require("../../prompts/system")
+		jest.spyOn(systemPromptModule, "SYSTEM_PROMPT").mockResolvedValue("Test optimized system prompt")
+
+		// Resolve webview and get message handler
+		await provider.resolveWebviewView(mockWebviewView)
+		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+
+		// Trigger getSystemPrompt
+		await messageHandler({ type: "getSystemPrompt", mode: "code" })
+
+		// Verify postMessage was called with metadata
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "systemPrompt",
+				text: "Test optimized system prompt",
+				mode: "code",
+				metadata: expect.objectContaining({
+					isOptimized: true,
+					availableSections: expect.arrayContaining([
+						"mcp_servers",
+						"modes",
+						"extended_capabilities",
+						"tool_use_guidelines",
+						"system_info",
+					]),
+				}),
+			}),
+		)
+	})
+
+	test("system prompt preview should update when mode changes", async () => {
+		// Setup Cline instance
+		const { Cline } = require("../../Cline")
+		const mockCline = new Cline()
+		mockCline.api = {
+			getModel: jest.fn().mockReturnValue({
+				id: "claude-3-sonnet",
+				info: { supportsComputerUse: true },
+			}),
+		}
+		await provider.addClineToStack(mockCline)
+
+		// Mock SYSTEM_PROMPT to track calls with different modes
+		const systemPromptModule = require("../../prompts/system")
+		const systemPromptSpy = jest.spyOn(systemPromptModule, "SYSTEM_PROMPT")
+		systemPromptSpy.mockImplementation(
+			async (context, cwd, supportsComputerUse, mcpHub, diffStrategy, browserViewportSize, mode) => {
+				return `System prompt for ${mode} mode`
+			},
+		)
+
+		// Resolve webview and get message handler
+		await provider.resolveWebviewView(mockWebviewView)
+		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+
+		// First get system prompt for code mode
+		await messageHandler({ type: "getSystemPrompt", mode: "code" })
+
+		// Verify postMessage was called with code mode
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "systemPrompt",
+				text: "System prompt for code mode",
+				mode: "code",
+			}),
+		)
+
+		// Reset mock
+		mockPostMessage.mockClear()
+
+		// Now get system prompt for architect mode
+		await messageHandler({ type: "getSystemPrompt", mode: "architect" })
+
+		// Verify postMessage was called with architect mode
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "systemPrompt",
+				text: "System prompt for architect mode",
+				mode: "architect",
+			}),
+		)
+	})
+
+	test("system prompt preview should update when custom instructions change", async () => {
+		// Setup Cline instance
+		const { Cline } = require("../../Cline")
+		const mockCline = new Cline()
+		mockCline.api = {
+			getModel: jest.fn().mockReturnValue({
+				id: "claude-3-sonnet",
+				info: { supportsComputerUse: true },
+			}),
+		}
+		await provider.addClineToStack(mockCline)
+
+		// Mock getState to include custom instructions
+		jest.spyOn(provider, "getState").mockResolvedValue({
+			apiConfiguration: {
+				apiProvider: "openrouter",
+				apiModelId: "test-model",
+			},
+			customInstructions: "Original custom instructions",
+			mode: "code",
+			experiments: {},
+		} as any)
+
+		// Mock SYSTEM_PROMPT to include custom instructions
+		const systemPromptModule = require("../../prompts/system")
+		const systemPromptSpy = jest.spyOn(systemPromptModule, "SYSTEM_PROMPT")
+		systemPromptSpy.mockImplementation(
+			async (
+				context,
+				cwd,
+				supportsComputerUse,
+				mcpHub,
+				diffStrategy,
+				browserViewportSize,
+				mode,
+				customModePrompts,
+				customModes,
+				globalCustomInstructions,
+			) => {
+				return `System prompt with instructions: ${globalCustomInstructions || "none"}`
+			},
+		)
+
+		// Resolve webview and get message handler
+		await provider.resolveWebviewView(mockWebviewView)
+		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+
+		// Get system prompt with original instructions
+		await messageHandler({ type: "getSystemPrompt", mode: "code" })
+
+		// Verify postMessage was called with original instructions
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "systemPrompt",
+				text: "System prompt with instructions: Original custom instructions",
+			}),
+		)
+
+		// Reset mock
+		mockPostMessage.mockClear()
+
+		// Update custom instructions
+		jest.spyOn(provider, "getState").mockResolvedValue({
+			apiConfiguration: {
+				apiProvider: "openrouter",
+				apiModelId: "test-model",
+			},
+			customInstructions: "Updated custom instructions",
+			mode: "code",
+			experiments: {},
+		} as any)
+
+		// Get system prompt with updated instructions
+		await messageHandler({ type: "getSystemPrompt", mode: "code" })
+
+		// Verify postMessage was called with updated instructions
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "systemPrompt",
+				text: "System prompt with instructions: Updated custom instructions",
+			}),
+		)
+	})
+
+	test("updateSystemPromptPreviewIfNeeded should be called when mode changes", async () => {
+		// Setup Cline instance
+		const { Cline } = require("../../Cline")
+		const mockCline = new Cline()
+		await provider.addClineToStack(mockCline)
+
+		// Spy on updateSystemPromptPreviewIfNeeded
+		const updateSpy = jest.spyOn(provider as any, "updateSystemPromptPreviewIfNeeded")
+
+		// Resolve webview
+		await provider.resolveWebviewView(mockWebviewView)
+
+		// Call handleModeSwitch
+		await provider.handleModeSwitch("architect")
+
+		// Verify updateSystemPromptPreviewIfNeeded was called with the new mode
+		expect(updateSpy).toHaveBeenCalledWith("architect")
+	})
+
+	test("updateSystemPromptPreviewIfNeeded should be called when custom instructions change", async () => {
+		// Setup Cline instance
+		const { Cline } = require("../../Cline")
+		const mockCline = new Cline()
+		await provider.addClineToStack(mockCline)
+
+		// Spy on updateSystemPromptPreviewIfNeeded
+		const updateSpy = jest.spyOn(provider as any, "updateSystemPromptPreviewIfNeeded")
+
+		// Resolve webview
+		await provider.resolveWebviewView(mockWebviewView)
+
+		// Call updateCustomInstructions
+		await provider.updateCustomInstructions("New custom instructions")
+
+		// Verify updateSystemPromptPreviewIfNeeded was called
+		expect(updateSpy).toHaveBeenCalled()
 	})
 })
 
