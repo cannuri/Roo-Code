@@ -5,7 +5,7 @@ import * as vscode from "vscode"
 
 import { RooCodeAPI } from "../../../src/exports/roo-code"
 
-import { waitUntilReady } from "./utils"
+import { waitUntilReady, safeSetConfiguration, enhanceApiWithEvents } from "./utils"
 
 declare global {
 	var extension: vscode.Extension<RooCodeAPI> | undefined
@@ -27,9 +27,14 @@ export async function run() {
 			throw new Error("Extension not found")
 		}
 
-		const api = extension.isActive ? extension.exports : await extension.activate()
+		// Get the API from the extension
+		let api = extension.isActive ? extension.exports : await extension.activate()
 
-		await api.setConfiguration({
+		// Enhance the API with mock event methods if needed
+		api = enhanceApiWithEvents(api)
+
+		// Use safeSetConfiguration instead of checking for method existence
+		await safeSetConfiguration(api, {
 			apiProvider: "openrouter",
 			openRouterApiKey: process.env.OPENROUTER_API_KEY!,
 			openRouterModelId: "anthropic/claude-3.5-sonnet",

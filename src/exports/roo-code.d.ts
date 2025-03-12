@@ -1,4 +1,14 @@
-export interface RooCodeAPI {
+import { EventEmitter } from "events"
+
+export interface RooCodeEvents {
+	"task:started": (taskId: string, message?: string) => void
+	"task:cancelled": (taskId: string) => void
+	"message:received": (taskId: string, message: ClineMessage) => void
+	"message:sent": (taskId: string, message: string, images?: string[]) => void
+	"task:completed": (taskId: string) => void
+}
+
+export interface RooCodeAPI extends EventEmitter {
 	/**
 	 * Starts a new task with an optional initial message and images.
 	 * @param task Optional initial task message.
@@ -43,6 +53,18 @@ export interface RooCodeAPI {
 	 * Returns the messages from the current task.
 	 */
 	getMessages(): ClineMessage[]
+
+	/**
+	 * Returns the current task ID or null if no task is active.
+	 */
+	getCurrentTaskId(): string | null
+
+	/**
+	 * Typed event emitter methods
+	 */
+	on<E extends keyof RooCodeEvents>(event: E, listener: RooCodeEvents[E]): this
+	once<E extends keyof RooCodeEvents>(event: E, listener: RooCodeEvents[E]): this
+	emit<E extends keyof RooCodeEvents>(event: E, ...args: Parameters<RooCodeEvents[E]>): boolean
 }
 
 export type ClineAsk =
