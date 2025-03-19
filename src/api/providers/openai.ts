@@ -11,7 +11,7 @@ import {
 import { SingleCompletionHandler } from "../index"
 import { convertToOpenAiMessages } from "../transform/openai-format"
 import { convertToR1Format } from "../transform/r1-format"
-import { convertToSimpleMessages } from "../transform/simple-format"
+import { serializeMessagesToText } from "../transform/message-format"
 import { ApiStream, ApiStreamUsageChunk } from "../transform/stream"
 import { BaseProvider } from "./base-provider"
 import { XmlMatcher } from "../../utils/xml-matcher"
@@ -82,7 +82,7 @@ export class OpenAiHandler extends BaseProvider implements SingleCompletionHandl
 			if (deepseekReasoner) {
 				convertedMessages = convertToR1Format([{ role: "user", content: systemPrompt }, ...messages])
 			} else if (ark) {
-				convertedMessages = [systemMessage, ...convertToSimpleMessages(messages)]
+				convertedMessages = [systemMessage, ...serializeMessagesToText(messages)]
 			} else {
 				if (modelInfo.supportsPromptCache) {
 					systemMessage = {

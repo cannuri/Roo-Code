@@ -1,9 +1,9 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 
 /**
- * Convert complex content blocks to simple string content
+ * Convert complex content blocks to message string content
  */
-export function convertToSimpleContent(content: Anthropic.Messages.MessageParam["content"]): string {
+export function serializeContentToText(content: Anthropic.Messages.MessageParam["content"]): string {
 	if (typeof content === "string") {
 		return content
 	}
@@ -46,13 +46,13 @@ export function convertToSimpleContent(content: Anthropic.Messages.MessageParam[
 }
 
 /**
- * Convert Anthropic messages to simple format with string content
+ * Convert Anthropic messages to message format with string content
  */
-export function convertToSimpleMessages(
+export function serializeMessagesToText(
 	messages: Anthropic.Messages.MessageParam[],
 ): Array<{ role: "user" | "assistant"; content: string }> {
 	return messages.map((message) => ({
 		role: message.role,
-		content: convertToSimpleContent(message.content),
+		content: serializeContentToText(message.content),
 	}))
 }

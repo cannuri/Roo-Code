@@ -1,11 +1,11 @@
 import { Anthropic } from "@anthropic-ai/sdk"
-import { convertToSimpleContent, convertToSimpleMessages } from "../simple-format"
+import { serializeContentToText, serializeMessagesToText } from "../message-format"
 
-describe("simple-format", () => {
-	describe("convertToSimpleContent", () => {
+describe("message-format", () => {
+	describe("serializeContentToText", () => {
 		it("returns string content as-is", () => {
 			const content = "Hello world"
-			expect(convertToSimpleContent(content)).toBe("Hello world")
+			expect(serializeContentToText(content)).toBe("Hello world")
 		})
 
 		it("extracts text from text blocks", () => {
@@ -13,7 +13,7 @@ describe("simple-format", () => {
 				{ type: "text", text: "Hello" },
 				{ type: "text", text: "world" },
 			] as Anthropic.Messages.TextBlockParam[]
-			expect(convertToSimpleContent(content)).toBe("Hello\nworld")
+			expect(serializeContentToText(content)).toBe("Hello\nworld")
 		})
 
 		it("converts image blocks to descriptive text", () => {
@@ -28,7 +28,7 @@ describe("simple-format", () => {
 					},
 				},
 			] as Array<Anthropic.Messages.TextBlockParam | Anthropic.Messages.ImageBlockParam>
-			expect(convertToSimpleContent(content)).toBe("Here's an image:\n[Image: image/png]")
+			expect(serializeContentToText(content)).toBe("Here's an image:\n[Image: image/png]")
 		})
 
 		it("converts tool use blocks to descriptive text", () => {
@@ -41,7 +41,7 @@ describe("simple-format", () => {
 					input: { path: "test.txt" },
 				},
 			] as Array<Anthropic.Messages.TextBlockParam | Anthropic.Messages.ToolUseBlockParam>
-			expect(convertToSimpleContent(content)).toBe("Using a tool:\n[Tool Use: read_file]")
+			expect(serializeContentToText(content)).toBe("Using a tool:\n[Tool Use: read_file]")
 		})
 
 		it("handles string tool result content", () => {
@@ -53,7 +53,7 @@ describe("simple-format", () => {
 					content: "Result text",
 				},
 			] as Array<Anthropic.Messages.TextBlockParam | Anthropic.Messages.ToolResultBlockParam>
-			expect(convertToSimpleContent(content)).toBe("Tool result:\nResult text")
+			expect(serializeContentToText(content)).toBe("Tool result:\nResult text")
 		})
 
 		it("handles array tool result content with text and images", () => {
@@ -75,7 +75,7 @@ describe("simple-format", () => {
 					],
 				},
 			] as Anthropic.Messages.ToolResultBlockParam[]
-			expect(convertToSimpleContent(content)).toBe("Result 1\n[Image: image/jpeg]\nResult 2")
+			expect(serializeContentToText(content)).toBe("Result 1\n[Image: image/jpeg]\nResult 2")
 		})
 
 		it("filters out empty strings", () => {
@@ -84,17 +84,17 @@ describe("simple-format", () => {
 				{ type: "text", text: "" },
 				{ type: "text", text: "world" },
 			] as Anthropic.Messages.TextBlockParam[]
-			expect(convertToSimpleContent(content)).toBe("Hello\nworld")
+			expect(serializeContentToText(content)).toBe("Hello\nworld")
 		})
 	})
 
-	describe("convertToSimpleMessages", () => {
+	describe("serializeMessagesToText", () => {
 		it("converts messages with string content", () => {
 			const messages = [
 				{ role: "user", content: "Hello" },
 				{ role: "assistant", content: "Hi there" },
 			] as Anthropic.Messages.MessageParam[]
-			expect(convertToSimpleMessages(messages)).toEqual([
+			expect(serializeMessagesToText(messages)).toEqual([
 				{ role: "user", content: "Hello" },
 				{ role: "assistant", content: "Hi there" },
 			])
@@ -129,7 +129,7 @@ describe("simple-format", () => {
 					],
 				},
 			] as Anthropic.Messages.MessageParam[]
-			expect(convertToSimpleMessages(messages)).toEqual([
+			expect(serializeMessagesToText(messages)).toEqual([
 				{ role: "user", content: "Look at this:\n[Image: image/png]" },
 				{ role: "assistant", content: "I see the image\n[Tool Use: analyze_image]" },
 			])

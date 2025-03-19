@@ -12,6 +12,8 @@ import { ApiConfiguration, ApiProvider, ModelInfo, API_CONFIG_KEYS } from "../..
 import { findLast } from "../../shared/array"
 import { supportPrompt } from "../../shared/support-prompt"
 import { GlobalFileNames } from "../../shared/globalFileNames"
+import { ModelCapabilityManager } from "../../shared/model-capability-manager"
+import { logger } from "../../utils/logging"
 import {
 	SecretKey,
 	GlobalStateKey,
@@ -1885,6 +1887,12 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 				browserToolEnabled,
 			} = await this.getState()
 
+			logger.debug("Generating system prompt", {
+				ctx: "ClineProvider",
+				browserToolEnabled,
+				modelId: apiConfiguration.apiModelId || apiConfiguration.openRouterModelId || "unknown",
+			})
+
 			// Create diffStrategy based on current model and settings
 			const diffStrategy = getDiffStrategy(
 				apiConfiguration.apiModelId || apiConfiguration.openRouterModelId || "",
@@ -1899,8 +1907,58 @@ export class ClineProvider implements vscode.WebviewViewProvider {
 			const rooIgnoreInstructions = this.getCurrentCline()?.rooIgnoreController?.getInstructions()
 
 			// Determine if browser tools can be used based on model support and user settings
-			const modelSupportsComputerUse = this.getCurrentCline()?.api.getModel().info.supportsComputerUse ?? false
+			let modelSupportsComputerUse = false
+
+			try {
+				// Use ModelCapabilityManager to safely check for browser capabilities
+				const capabilityManager = ModelCapabilityManager.getInstance()
+				const currentCline = this.getCurrentCline()
+
+				if (currentCline?.api) {
+					const model = currentCline.api.getModel()
+					if (model) {
+						// Get capabilities from the model
+						const capabilities = await capabilityManager.determineCapabilities({
+							apiModel: model.info,
+							apiConfiguration,
+							browserToolEnabled: browserToolEnabled ?? true,
+						})
+
+						modelSupportsComputerUse = capabilityManager.supportsComputerUse(capabilities)
+
+						logger.info("Browser capability check", {
+							ctx: "ClineProvider",
+							modelId: model.id || "unknown",
+							supportsComputerUse: modelSupportsComputerUse,
+							browserToolEnabled,
+						})
+					} else {
+						logger.warn("Model information not available for capability check", {
+							ctx: "ClineProvider",
+						})
+					}
+				} else {
+					logger.debug("No active Cline instance for capability check", {
+						ctx: "ClineProvider",
+					})
+				}
+			} catch (error) {
+				logger.error("Error checking browser capabilities", {
+					ctx: "ClineProvider",
+					error: error instanceof Error ? error.message : String(error),
+				})
+				// Fall back to false for safety
+				modelSupportsComputerUse = false
+			}
+
 			const canUseBrowserTool = modelSupportsComputerUse && (browserToolEnabled ?? true)
+
+			logger.info("Browser tool availability", {
+				ctx: "ClineProvider",
+				canUseBrowserTool,
+				modelSupportsComputerUse,
+				browserToolEnabled: browserToolEnabled ?? true,
+			})
 
 			const systemPrompt = await SYSTEM_PROMPT(
 				this.context,
