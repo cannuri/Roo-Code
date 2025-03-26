@@ -22,6 +22,9 @@ Parameters:
         - Use with the \`text\` parameter to provide the string to type.
     * scroll_down: Scroll down the page by one page height.
     * scroll_up: Scroll up the page by one page height.
+    * upload: Upload a file to a file input element on the page.
+        - Use with the \`selector\` parameter to specify the CSS selector for the file input element.
+        - Use with the \`filepath\` parameter to specify the path to the file to upload.
     * close: Close the Puppeteer-controlled browser instance. This **must always be the final browser action**.
         - Example: \`<action>close</action>\`
 - url: (optional) Use this for providing the URL for the \`launch\` action.
@@ -30,12 +33,18 @@ Parameters:
     * Example: <coordinate>450,300</coordinate>
 - text: (optional) Use this for providing the text for the \`type\` action.
     * Example: <text>Hello, world!</text>
+- selector: (optional) The CSS selector for the file input element for the \`upload\` action.
+    * Example: <selector>input[type="file"]</selector>
+- filepath: (optional) The path to the file to upload for the \`upload\` action.
+    * Example: <filepath>/path/to/file.jpg</filepath>
 Usage:
 <browser_action>
-<action>Action to perform (e.g., launch, click, type, scroll_down, scroll_up, close)</action>
+<action>Action to perform (e.g., launch, click, type, scroll_down, scroll_up, upload, close)</action>
 <url>URL to launch the browser at (optional)</url>
 <coordinate>x,y coordinates (optional)</coordinate>
 <text>Text to type (optional)</text>
+<selector>CSS selector for file input (optional)</selector>
+<filepath>Path to file to upload (optional)</filepath>
 </browser_action>
 
 Example: Requesting to launch a browser at https://example.com
@@ -48,5 +57,12 @@ Example: Requesting to click on the element at coordinates 450,300
 <browser_action>
 <action>click</action>
 <coordinate>450,300</coordinate>
+</browser_action>
+
+Example: Requesting to upload a file to a file input element
+<browser_action>
+<action>upload</action>
+<selector>input[type="file"]</selector>
+<filepath>/path/to/file.jpg</filepath>
 </browser_action>`
 }
