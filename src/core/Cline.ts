@@ -2640,7 +2640,7 @@ export class Cline extends EventEmitter<ClineEvents> {
 								}
 								break
 							} else {
-								let browserActionResult: BrowserActionResult
+								let browserActionResult: BrowserActionResult | undefined
 								if (action === "launch") {
 									if (!url) {
 										this.consecutiveMistakeCount++
