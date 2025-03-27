@@ -243,9 +243,14 @@ export class BrowserSession {
 		try {
 			await action(this.page)
 		} catch (err) {
-			if (!(err instanceof TimeoutError)) {
+			// Re-throw the file chooser error to ensure it propagates to the caller
+			if (err instanceof Error && err.message.includes("Clicking this element opened a file selection dialog")) {
+				throw err // Re-throw to ensure the click action fails properly
+			} else if (!(err instanceof TimeoutError)) {
 				logs.push(`[Error] ${err.toString()}`)
 			}
+			// Re-throw the error to be caught by the caller (e.g., the test)
+			throw err
 		}
 
 		// Wait for console inactivity, with a timeout
@@ -343,10 +348,15 @@ export class BrowserSession {
 		const [x, y] = coordinate.split(",").map(Number)
 		return this.doAction(async (page) => {
 			// Set up file chooser interception
+			console.log("[TEST_DEBUG] Attaching filechooser listener")
 			page.once("filechooser", async (fileChooser) => {
-				// This will be handled by the upload method if needed
-				console.log("File chooser detected, but no files provided")
+				console.log("[TEST_DEBUG] Filechooser listener triggered!")
+				// Intercept file chooser triggered by click and throw an error
+				throw new Error(
+					"Clicking this element opened a file selection dialog. You MUST use the 'upload' action with a valid CSS selector for the file input element and the file path instead of clicking.",
+				)
 			})
+			console.log("[TEST_DEBUG] Filechooser listener attached")
 
 			// Set up network activity monitoring
 			let hasNetworkActivity = false
@@ -358,7 +368,9 @@ export class BrowserSession {
 			page.on("request", requestListener)
 
 			// Perform the click
+			console.log(`[TEST_DEBUG] Performing click at ${x},${y}`)
 			await page.mouse.click(x, y)
+			console.log(`[TEST_DEBUG] Click performed at ${x},${y}`)
 			this.currentMousePosition = coordinate
 
 			// Small delay before checking for navigation
@@ -415,16 +427,16 @@ export class BrowserSession {
 	}
 
 	/**
-		* Uploads a file to a file input element identified by the selector
-		*
-		* This method implements a robust file upload strategy with multiple fallback mechanisms:
-		* 1. First tries to directly set the file on the input element (works with hidden inputs)
-		* 2. Falls back to using the FileChooser API if direct method fails
-		*
-		* @param selector CSS selector for the file input element
-		* @param filepath Path to the file to upload
-		* @returns Browser action result with screenshot and logs
-		*/
+	 * Uploads a file to a file input element identified by the selector
+	 *
+	 * This method implements a robust file upload strategy with multiple fallback mechanisms:
+	 * 1. First tries to directly set the file on the input element (works with hidden inputs)
+	 * 2. Falls back to using the FileChooser API if direct method fails
+	 *
+	 * @param selector CSS selector for the file input element
+	 * @param filepath Path to the file to upload
+	 * @returns Browser action result with screenshot and logs
+	 */
 	async upload(selector: string, filepath: string): Promise<BrowserActionResult> {
 		return this.doAction(async (page) => {
 			// Verify file exists before attempting upload
@@ -458,11 +470,11 @@ export class BrowserSession {
 	}
 
 	/**
-		* Verifies that the file exists before attempting to upload it
-		*
-		* @param filepath Path to the file to upload
-		* @throws Error if the file does not exist
-		*/
+	 * Verifies that the file exists before attempting to upload it
+	 *
+	 * @param filepath Path to the file to upload
+	 * @throws Error if the file does not exist
+	 */
 	private async verifyFileExists(filepath: string): Promise<void> {
 		try {
 			await fs.access(filepath)
@@ -472,12 +484,15 @@ export class BrowserSession {
 	}
 
 	/**
-		* Sets up network monitoring to track upload activity
-		*
-		* @param page The Puppeteer page
-		* @returns Object containing request and response listeners
-		*/
-	private setupNetworkMonitoring(page: Page): { requestListener: (request: any) => void; responseListener: (response: any) => void } {
+	 * Sets up network monitoring to track upload activity
+	 *
+	 * @param page The Puppeteer page
+	 * @returns Object containing request and response listeners
+	 */
+	private setupNetworkMonitoring(page: Page): {
+		requestListener: (request: any) => void
+		responseListener: (response: any) => void
+	} {
 		const requestListener = (request: any) => {
 			const url = request.url()
 			if (request.method() === "POST" || request.method() === "PUT") {
@@ -499,14 +514,14 @@ export class BrowserSession {
 	}
 
 	/**
-		* Attempts to upload a file using multiple methods with fallbacks
-		*
-		* @param page The Puppeteer page
-		* @param selector CSS selector for the file input element
-		* @param filepath Path to the file to upload
-		* @param initialUrl The URL before the upload started
-		* @param initialContent The page content before the upload started
-		*/
+	 * Attempts to upload a file using multiple methods with fallbacks
+	 *
+	 * @param page The Puppeteer page
+	 * @param selector CSS selector for the file input element
+	 * @param filepath Path to the file to upload
+	 * @param initialUrl The URL before the upload started
+	 * @param initialContent The page content before the upload started
+	 */
 	private async attemptUploadWithMultipleMethods(
 		page: Page,
 		selector: string,
@@ -534,15 +549,15 @@ export class BrowserSession {
 	}
 
 	/**
-		* Uploads a file using the direct input method
-		* This method works by directly setting the file on the input element
-		*
-		* @param page The Puppeteer page
-		* @param selector CSS selector for the file input element
-		* @param filepath Path to the file to upload
-		* @param initialUrl The URL before the upload started
-		* @param initialContent The page content before the upload started
-		*/
+	 * Uploads a file using the direct input method
+	 * This method works by directly setting the file on the input element
+	 *
+	 * @param page The Puppeteer page
+	 * @param selector CSS selector for the file input element
+	 * @param filepath Path to the file to upload
+	 * @param initialUrl The URL before the upload started
+	 * @param initialContent The page content before the upload started
+	 */
 	private async uploadWithDirectInputMethod(
 		page: Page,
 		selector: string,
@@ -581,14 +596,14 @@ export class BrowserSession {
 	}
 
 	/**
-		* Finds the target file input element based on the selector
-		* Falls back to the first available file input if the selector doesn't match
-		*
-		* @param page The Puppeteer page
-		* @param selector CSS selector for the file input element
-		* @param fileInputs Array of file input elements found on the page
-		* @returns The target file input element or null if not found
-		*/
+	 * Finds the target file input element based on the selector
+	 * Falls back to the first available file input if the selector doesn't match
+	 *
+	 * @param page The Puppeteer page
+	 * @param selector CSS selector for the file input element
+	 * @param fileInputs Array of file input elements found on the page
+	 * @returns The target file input element or null if not found
+	 */
 	private async findTargetFileInput(
 		page: Page,
 		selector: string,
@@ -626,13 +641,13 @@ export class BrowserSession {
 	}
 
 	/**
-		* Makes a file input element accessible by modifying its styles
-		* This is necessary for hidden file inputs that are not directly interactive
-		*
-		* @param page The Puppeteer page
-		* @param inputElement The file input element
-		* @returns The original styles to restore later
-		*/
+	 * Makes a file input element accessible by modifying its styles
+	 * This is necessary for hidden file inputs that are not directly interactive
+	 *
+	 * @param page The Puppeteer page
+	 * @param inputElement The file input element
+	 * @returns The original styles to restore later
+	 */
 	private async makeFileInputAccessible(page: Page, inputElement: ElementHandle<Element>): Promise<any> {
 		return page.evaluate((el) => {
 			// Cast to HTMLInputElement to access style and other properties
@@ -658,12 +673,12 @@ export class BrowserSession {
 	}
 
 	/**
-		* Restores the original styles of a file input element
-		*
-		* @param page The Puppeteer page
-		* @param inputElement The file input element
-		* @param originalStyles The original styles to restore
-		*/
+	 * Restores the original styles of a file input element
+	 *
+	 * @param page The Puppeteer page
+	 * @param inputElement The file input element
+	 * @param originalStyles The original styles to restore
+	 */
 	private async restoreFileInputStyles(
 		page: Page,
 		inputElement: ElementHandle<Element>,
@@ -683,15 +698,15 @@ export class BrowserSession {
 	}
 
 	/**
-		* Attempts to upload a file using the FileChooser API
-		* This is a fallback method that works by clicking on the file input
-		*
-		* @param page The Puppeteer page
-		* @param selector CSS selector for the file input element
-		* @param filepath Path to the file to upload
-		* @param initialUrl The URL before the upload started
-		* @param initialContent The page content before the upload started
-		*/
+	 * Attempts to upload a file using the FileChooser API
+	 * This is a fallback method that works by clicking on the file input
+	 *
+	 * @param page The Puppeteer page
+	 * @param selector CSS selector for the file input element
+	 * @param filepath Path to the file to upload
+	 * @param initialUrl The URL before the upload started
+	 * @param initialContent The page content before the upload started
+	 */
 	private async uploadWithFileChooserAPI(
 		page: Page,
 		selector: string,
@@ -722,18 +737,18 @@ export class BrowserSession {
 	}
 
 	/**
-		* Waits for an upload to complete by monitoring network activity, URL changes, and UI changes
-		*
-		* This method uses multiple strategies to detect when an upload has completed:
-		* 1. Monitors network activity and waits for it to settle
-		* 2. Checks for URL changes that might indicate navigation after upload
-		* 3. Checks for content changes that might indicate successful upload
-		* 4. Looks for common success indicators in the page content
-		*
-		* @param page The Puppeteer page
-		* @param initialUrl The URL before the upload started
-		* @param initialContent The page content before the upload started
-		*/
+	 * Waits for an upload to complete by monitoring network activity, URL changes, and UI changes
+	 *
+	 * This method uses multiple strategies to detect when an upload has completed:
+	 * 1. Monitors network activity and waits for it to settle
+	 * 2. Checks for URL changes that might indicate navigation after upload
+	 * 3. Checks for content changes that might indicate successful upload
+	 * 4. Looks for common success indicators in the page content
+	 *
+	 * @param page The Puppeteer page
+	 * @param initialUrl The URL before the upload started
+	 * @param initialContent The page content before the upload started
+	 */
 	private async waitForUploadToComplete(page: Page, initialUrl: string, initialContent: string): Promise<void> {
 		console.log("[UPLOAD] Waiting for upload to complete...")
 
@@ -757,10 +772,10 @@ export class BrowserSession {
 	}
 
 	/**
-		* Waits for network activity to settle (no new activity for 2 seconds)
-		*
-		* @param page The Puppeteer page
-		*/
+	 * Waits for network activity to settle (no new activity for 2 seconds)
+	 *
+	 * @param page The Puppeteer page
+	 */
 	private async waitForNetworkActivityToSettle(page: Page): Promise<void> {
 		// Track network activity
 		let lastNetworkActivityTime = Date.now()
@@ -808,12 +823,12 @@ export class BrowserSession {
 	}
 
 	/**
-		* Detects changes that might indicate a successful upload
-		*
-		* @param page The Puppeteer page
-		* @param initialUrl The URL before the upload started
-		* @param initialContent The page content before the upload started
-		*/
+	 * Detects changes that might indicate a successful upload
+	 *
+	 * @param page The Puppeteer page
+	 * @param initialUrl The URL before the upload started
+	 * @param initialContent The page content before the upload started
+	 */
 	private async detectUploadCompletionChanges(page: Page, initialUrl: string, initialContent: string): Promise<void> {
 		// Check for URL changes that might indicate successful upload
 		const currentUrl = page.url()
@@ -836,16 +851,16 @@ export class BrowserSession {
 		}
 	}
 	/**
-		* Checks for common indicators that an upload was successful
-		*
-		* This method looks for:
-		* 1. Success text messages in the page content
-		* 2. Success elements/icons that might indicate completion
-		* 3. New file elements that might have appeared after upload
-		*
-		* @param page The Puppeteer page
-		* @returns Array of success indicators found
-		*/
+	 * Checks for common indicators that an upload was successful
+	 *
+	 * This method looks for:
+	 * 1. Success text messages in the page content
+	 * 2. Success elements/icons that might indicate completion
+	 * 3. New file elements that might have appeared after upload
+	 *
+	 * @param page The Puppeteer page
+	 * @returns Array of success indicators found
+	 */
 	private async checkForUploadSuccessIndicators(page: Page): Promise<string[]> {
 		const indicators: string[] = []
 
@@ -923,5 +938,24 @@ export class BrowserSession {
 		}
 
 		return indicators
+	}
+
+	// Helper method for testing to get element coordinates
+	async getElementCoordinatesForTest(selector: string): Promise<{ x: number; y: number } | null> {
+		if (!this.page) {
+			throw new Error("Browser page not available")
+		}
+		const element = await this.page.$(selector)
+		if (!element) {
+			return null
+		}
+		const boundingBox = await element.boundingBox()
+		if (!boundingBox) {
+			return null
+		}
+		return {
+			x: Math.round(boundingBox.x + boundingBox.width / 2),
+			y: Math.round(boundingBox.y + boundingBox.height / 2),
+		}
 	}
 }
