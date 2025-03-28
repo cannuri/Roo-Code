@@ -66,6 +66,7 @@ export interface WebviewMessage {
 		| "enableCheckpoints"
 		| "checkpointStorage"
 		| "browserViewportSize"
+		| "browserPersistSession" // Added for browser session persistence
 		| "screenshotQuality"
 		| "remoteBrowserHost"
 		| "openMcpSettings"

@@ -89,5 +89,11 @@
 	"input": {
 		"task_prompt": "What should Roo do?",
 		"task_placeholder": "Type your task here"
+	},
+	"settings": {
+		"browserPersistSession": {
+			"label": "Persist Browser Session",
+			"description": "Keep the browser session active between tool calls, even for non-browser actions. Note: This may consume more resources."
+		}
 	}
 }

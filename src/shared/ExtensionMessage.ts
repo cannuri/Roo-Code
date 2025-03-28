@@ -12,6 +12,8 @@ import {
 	ClineSay,
 	ToolProgressStatus,
 	ClineMessage,
+	CustomModePrompts, // Added for type safety
+	CustomSupportPrompts, // Added for type safety
 } from "../schemas"
 import { McpServer } from "./mcp"
 import { GitCommit } from "../utils/git"
@@ -170,15 +172,38 @@ export type ExtensionState = Pick<
 	version: string
 	osInfo: string
 	clineMessages: ClineMessage[]
-	currentTaskItem?: HistoryItem
-	apiConfiguration?: ApiConfiguration
-	uriScheme?: string
-	shouldShowAnnouncement: boolean
-
 	taskHistory: HistoryItem[]
+	shouldShowAnnouncement: boolean
+	apiConfiguration?: ApiConfiguration
+	currentApiConfigName?: string
+	listApiConfigMeta?: ApiConfigMeta[]
+	customInstructions?: string
+	customModePrompts?: CustomModePrompts
+	customSupportPrompts?: CustomSupportPrompts
+	alwaysAllowReadOnly?: boolean
+	alwaysAllowReadOnlyOutsideWorkspace?: boolean
+	alwaysAllowWrite?: boolean
+	alwaysAllowWriteOutsideWorkspace?: boolean
+	alwaysAllowExecute?: boolean
+	alwaysAllowBrowser?: boolean
+	alwaysAllowMcp?: boolean
+	alwaysApproveResubmit?: boolean
+	alwaysAllowModeSwitch?: boolean
+	alwaysAllowSubtasks?: boolean
+	browserToolEnabled?: boolean
+	browserPersistSession?: boolean // Added
+	requestDelaySeconds: number
+	rateLimitSeconds: number // Minimum time between successive requests (0 = disabled)
+	uriScheme?: string
+	currentTaskItem?: HistoryItem
+	// apiConfiguration?: ApiConfiguration // Duplicate removed
+	// uriScheme?: string // Duplicate removed
+	// shouldShowAnnouncement: boolean // Duplicate removed
+
+	// taskHistory: HistoryItem[] // Duplicate removed
 
 	writeDelayMs: number
-	requestDelaySeconds: number
+	// requestDelaySeconds: number // Duplicate removed
 
 	enableCheckpoints: boolean
 	checkpointStorage: CheckpointStorage
@@ -187,7 +212,7 @@ export type ExtensionState = Pick<
 	showRooIgnoredFiles: boolean // Whether to show .rooignore'd files in listings
 	maxReadFileLine: number // Maximum number of lines to read from a file before truncating
 
-	rateLimitSeconds: number // Minimum time between successive requests (0 = disabled).
+	// rateLimitSeconds: number // Duplicate removed
 	experiments: Record<ExperimentId, boolean> // Map of experiment IDs to their enabled state
 
 	mcpEnabled: boolean

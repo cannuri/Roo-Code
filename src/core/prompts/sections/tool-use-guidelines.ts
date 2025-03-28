@@ -1,5 +1,5 @@
-export function getToolUseGuidelinesSection(): string {
-	return `# Tool Use Guidelines
+export function getToolUseGuidelinesSection(browserPersistSession?: boolean): string {
+	let guidelines = `# Tool Use Guidelines
 
 1. In <thinking> tags, assess what information you already have and what information you need to proceed with the task.
 2. Choose the most appropriate tool based on the task and the tool descriptions provided. Assess if you need additional information to proceed, and which of the available tools would be most effective for gathering this information. For example using the list_files tool is more effective than running a command like \`ls\` in the terminal. It's critical that you think about each available tool and use the one that best fits the current step in the task.
@@ -10,7 +10,7 @@ export function getToolUseGuidelinesSection(): string {
   - Linter errors that may have arisen due to the changes you made, which you'll need to address.
   - New terminal output in reaction to the changes, which you may need to consider or act upon.
   - Any other relevant feedback or information related to the tool use.
-6. ALWAYS wait for user confirmation after each tool use before proceeding. Never assume the success of a tool use without explicit confirmation of the result from the user.
+6. ALWAYS wait for user confirmation after each tool use before proceeding. Never assume the success of a tool use without explicit confirmation of the result from the user. After using \`ask_followup_question\`, you **MUST** stop and wait for the user's answer before using any other tool or taking any further action.
 
 It is crucial to proceed step-by-step, waiting for the user's message after each tool use before moving forward with the task. This approach allows you to:
 1. Confirm the success of each step before proceeding.
@@ -18,5 +18,13 @@ It is crucial to proceed step-by-step, waiting for the user's message after each
 3. Adapt your approach based on new information or unexpected results.
 4. Ensure that each action builds correctly on the previous ones.
 
-By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.`
+By waiting for and carefully considering the user's response after each tool use, you can react accordingly and make informed decisions about how to proceed with the task. This iterative process helps ensure the overall success and accuracy of your work.
+7. **Waiting for Instructions:** If the user asks you to perform an action and then "wait", or if you complete a step and need further instructions, **ALWAYS** use the \`ask_followup_question\` tool to confirm readiness or clarify the next step. Do not simply state that you are waiting without using a tool.` // Use backticks for tool name
+
+	if (browserPersistSession) {
+		guidelines += `
+8. **Browser Persistence:** The user has enabled browser session persistence. Keep the browser open between related actions within a task. Avoid using the \`close\` browser action unless explicitly instructed by the user or the browser is definitively no longer needed for subsequent steps in the current task. Refer to the specific browser tool description for more details on handling persistence, errors, and waiting states.` // Renumbered and added reference, use backticks for tool name
+	}
+
+	return guidelines
 }

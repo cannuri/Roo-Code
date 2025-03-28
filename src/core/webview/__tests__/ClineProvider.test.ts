@@ -423,6 +423,7 @@ describe("ClineProvider", () => {
 			showRooIgnoredFiles: true,
 			renderContext: "sidebar",
 			maxReadFileLine: 500,
+			browserPersistSession: false,
 		}
 
 		const message: ExtensionMessage = {
@@ -725,6 +726,71 @@ describe("ClineProvider", () => {
 		expect(mockContext.globalState.update).toHaveBeenCalledWith("showRooIgnoredFiles", false)
 		expect(mockPostMessage).toHaveBeenCalled()
 		expect((await provider.getState()).showRooIgnoredFiles).toBe(false)
+	})
+
+	test("getState includes browserPersistSession from globalState", async () => {
+		// Mock globalState.get to return true for browserPersistSession
+		;(mockContext.globalState.get as jest.Mock).mockImplementation((key: string, defaultValue: any) => {
+			if (key === "browserPersistSession") {
+				return true
+			}
+			return defaultValue // Return default for other keys
+		})
+
+		const state = await provider.getState()
+
+		expect(mockContext.globalState.get).toHaveBeenCalledWith("browserPersistSession", false) // Check default value usage
+		expect(state).toHaveProperty("browserPersistSession")
+		expect(state.browserPersistSession).toBe(true) // Check the mocked value is read
+	})
+
+	test("browserPersistSession defaults to false in getState", async () => {
+		// Mock globalState.get to return undefined for browserPersistSession
+		;(mockContext.globalState.get as jest.Mock).mockImplementation((key: string, defaultValue: any) => {
+			if (key === "browserPersistSession") {
+				return undefined
+			}
+			return defaultValue
+		})
+
+		const state = await provider.getState()
+		expect(state.browserPersistSession).toBe(false)
+	})
+
+	test("handles browserPersistSession message and updates state", async () => {
+		await provider.resolveWebviewView(mockWebviewView)
+		const messageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+
+		// Test setting to true
+		await messageHandler({ type: "browserPersistSession", bool: true })
+
+		expect(mockContext.globalState.update).toHaveBeenCalledWith("browserPersistSession", true)
+		expect(mockContext.globalState.update).toHaveBeenCalledWith("browserPersistSession", true)
+		// Check if state is posted back (mockPostMessage is called multiple times, check the last relevant call)
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "state",
+				state: expect.objectContaining({ browserPersistSession: true }),
+			}),
+		)
+
+		// Clear mocks for the next part - need to re-resolve webview after clearing mocks if message handler is needed again
+		jest.clearAllMocks()
+		await provider.resolveWebviewView(mockWebviewView) // Re-resolve to re-attach message listener
+		const newMessageHandler = (mockWebviewView.webview.onDidReceiveMessage as jest.Mock).mock.calls[0][0]
+
+		// Test setting to false
+		await newMessageHandler({ type: "browserPersistSession", bool: false })
+
+		expect(mockContext.globalState.update).toHaveBeenCalledWith("browserPersistSession", false)
+		expect(mockContext.globalState.update).toHaveBeenCalledWith("browserPersistSession", false)
+		// Check if state is posted back
+		expect(mockPostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: "state",
+				state: expect.objectContaining({ browserPersistSession: false }),
+			}),
+		)
 	})
 
 	test("handles request delay settings messages", async () => {

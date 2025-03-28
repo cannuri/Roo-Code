@@ -83,10 +83,58 @@ interface ChatMessageContentProps {
 
 function ChatMessageContent({ isHeaderVisible }: ChatMessageContentProps) {
 	const { message } = useChatMessage()
+	let browserResult: { screenshot?: string; currentUrl?: string; logs?: string } | null = null
+
+	// Attempt to parse content as JSON and check for screenshot
+	if (typeof message.content === "string" && message.content.trim().startsWith("{")) {
+		try {
+			const parsed = JSON.parse(message.content)
+			if (parsed && typeof parsed === "object" && parsed.screenshot) {
+				console.log("[ChatMessageContent] Successfully parsed browser result with screenshot.") // Log success
+				browserResult = parsed
+			} else {
+				console.log("[ChatMessageContent] Parsed JSON but no screenshot property found:", parsed) // Log missing property
+				browserResult = null
+			}
+		} catch (e) {
+			console.error(
+				"[ChatMessageContent] Failed to parse message content as JSON:",
+				e,
+				"Content:",
+				message.content,
+			) // Log parsing error
+			// Not valid JSON or doesn't have screenshot, treat as normal markdown
+			browserResult = null
+		}
+	}
 
 	return (
 		<div className={cn("flex flex-col gap-4 flex-1 min-w-0 px-4 pb-6", { "pt-4": isHeaderVisible })}>
-			<Markdown content={message.content} />
+			{browserResult ? (
+				<div className="flex flex-col gap-2">
+					<img
+						src={browserResult.screenshot}
+						alt="Browser Screenshot"
+						className="max-w-full h-auto border border-vscode-input-border rounded"
+					/>
+					{browserResult.currentUrl && (
+						<p className="text-xs text-muted-foreground">
+							Current URL:{" "}
+							<a
+								href={browserResult.currentUrl}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="underline">
+								{browserResult.currentUrl}
+							</a>
+						</p>
+					)}
+					{/* Optionally display logs if needed */}
+					{/* {browserResult.logs && <pre className="text-xs bg-muted p-2 rounded">{browserResult.logs}</pre>} */}
+				</div>
+			) : (
+				<Markdown content={message.content} />
+			)}
 		</div>
 	)
 }

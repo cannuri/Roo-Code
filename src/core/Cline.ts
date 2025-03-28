@@ -940,7 +940,7 @@ export class Cline extends EventEmitter<ClineEvents> {
 		TerminalRegistry.releaseTerminalsForTask(this.taskId)
 
 		this.urlContentFetcher.closeBrowser()
-		this.browserSession.closeBrowser()
+		this.browserSession?.closeBrowser()
 		this.rooIgnoreController?.dispose()
 
 		// If we're not streaming then `abortStream` (which reverts the diff
@@ -1507,11 +1507,6 @@ export class Cline extends EventEmitter<ClineEvents> {
 						"error",
 						`Error ${action}:\n${error.message ?? JSON.stringify(serializeError(error), null, 2)}`,
 					)
-					// this.toolResults.push({
-					// 	type: "tool_result",
-					// 	tool_use_id: toolUseId,
-					// 	content: await this.formatToolError(errorString),
-					// })
 					pushToolResult(formatResponse.toolError(errorString))
 				}
 
@@ -1536,8 +1531,16 @@ export class Cline extends EventEmitter<ClineEvents> {
 					return text.replace(tagRegex, "")
 				}
 
-				if (block.name !== "browser_action") {
-					await this.browserSession.closeBrowser()
+				const provider = this.providerRef.deref()
+				const state = provider ? await provider.getState() : undefined
+				const browserPersistSession = state?.browserPersistSession ?? false // Default to false
+
+				// If persistence is OFF, close the browser after handling any tool *except* browser_action itself
+				// (browser_action handles its own closing logic internally).
+				if (!browserPersistSession) {
+					if (block.type !== "tool_use" || block.name !== "browser_action") {
+						await this.browserSession?.closeBrowser()
+					}
 				}
 
 				if (!block.partial) {
@@ -2487,7 +2490,34 @@ export class Cline extends EventEmitter<ClineEvents> {
 									await this.say("browser_action_result", "") // starts loading spinner
 
 									await this.browserSession.launchBrowser()
-									browserActionResult = await this.browserSession.navigateToUrl(url)
+									const requestedUrl = url // url is guaranteed to exist here due to check at line 2650
+									// didNavigate is declared before the inner switch (action) block now
+									let didNavigate = true // Flag to track if navigation occurred
+
+									if (this.browserSession.isPageAtUrl(requestedUrl)) {
+										console.log(
+											`[BrowserAction] Already at URL ${requestedUrl}, skipping navigation.`,
+										)
+										didNavigate = false
+										// Capture current state instead of navigating
+										try {
+											browserActionResult = await this.browserSession.getCurrentState()
+											// Prepend a log message indicating navigation was skipped
+											browserActionResult.logs = `Skipped navigation: Already at URL ${requestedUrl}\n${browserActionResult.logs || "(No logs)"}`
+										} catch (stateError) {
+											console.error(
+												"[BrowserAction] Error capturing state without navigation:",
+												stateError,
+											)
+											// Fallback if state capture fails
+											browserActionResult = {
+												logs: `Already at URL ${requestedUrl}. Error capturing current state: ${stateError.message}`,
+											}
+										}
+									} else {
+										// Page doesn't exist, is closed, or URL doesn't match - navigate normally
+										browserActionResult = await this.browserSession.navigateToUrl(requestedUrl)
+									}
 								} else {
 									if (action === "click") {
 										if (!coordinate) {
@@ -2523,6 +2553,60 @@ export class Cline extends EventEmitter<ClineEvents> {
 										undefined,
 										false,
 									)
+									// Check if browser is launched before non-launch actions
+									if (!this.browserSession.isPageReady()) {
+										// Use the new public getter
+										// If persistence is OFF, attempt to re-launch silently before proceeding
+										if (!browserPersistSession) {
+											console.log(
+												"[Cline] Browser wasn't launched before non-launch action (persistence OFF). Attempting silent re-launch...",
+											)
+											try {
+												await this.browserSession.launchBrowser()
+												console.log("[Cline] Silent re-launch successful.")
+												// Optionally, add a small delay or wait for page ready state if needed after re-launch
+												// await sleep(100); // Example delay
+											} catch (relaunchError) {
+												console.error("[Cline] Silent re-launch failed:", relaunchError)
+												// Handle error - push tool error, break, etc.
+												// NOTE: Using a placeholder handleError as the exact implementation wasn't provided.
+												// You might need to replace this with the actual error handling mechanism.
+												const errorMsg = `Failed re-launching browser: ${relaunchError instanceof Error ? relaunchError.message : String(relaunchError)}`
+												console.error(`[Cline] Error ${errorMsg}`)
+												// First, update UI with error status
+												await this.say(
+													"browser_action", // type
+													errorMsg, // text
+													undefined, // images
+													undefined, // partial
+													undefined, // checkpoint
+													{ text: "error" }, // progressStatus
+												)
+												// Then, push the error message string as the result
+												pushToolResult(errorMsg)
+												break // Break out of the main browser_action case
+											}
+										} else {
+											// If persistence is ON, this is unexpected - throw an error or handle appropriately
+											const errorMsg =
+												"Browser is not launched, but persistence is ON. This should not happen."
+											console.error(`[Cline] Error executing browser action: ${errorMsg}`)
+											// First, update UI with error status
+											await this.say(
+												"browser_action", // type
+												errorMsg, // text
+												undefined, // images
+												undefined, // partial
+												undefined, // checkpoint
+												{ text: "error" }, // progressStatus
+											)
+											// Then, push the error message string as the result
+											pushToolResult(errorMsg)
+											break // Break out of the main browser_action case
+										}
+									}
+
+									// Original switch (action) block follows...
 									switch (action) {
 										case "click":
 											browserActionResult = await this.browserSession.click(coordinate!)
@@ -2542,21 +2626,35 @@ export class Cline extends EventEmitter<ClineEvents> {
 									}
 								}
 
+								// Initialize browserActionResult to an empty object if it's not already set
+								browserActionResult = browserActionResult || {}
 								switch (action) {
-									case "launch":
+									case "launch": {
+										// Check if navigation was skipped and update the flag
+										// This check relies on the logic added earlier inside the 'launch' case
+										// Note: didNavigate is removed as it's only used for upload case
+										// if (browserActionResult?.logs?.startsWith("Skipped navigation:")) {
+										// 	didNavigate = false
+										// }
+										break // Important: break after handling 'launch' specific logic here
+									}
 									case "click":
 									case "type":
 									case "scroll_down":
 									case "scroll_up":
-										await this.say("browser_action_result", JSON.stringify(browserActionResult))
-										pushToolResult(
-											formatResponse.toolResult(
-												`The browser action has been executed. The console logs and screenshot have been captured for your analysis.\n\nConsole logs:\n${
-													browserActionResult.logs || "(No new logs)"
-												}\n\n(REMEMBER: if you need to proceed to using non-\`browser_action\` tools or launch a new browser, you MUST first close this browser. For example, if after analyzing the logs and screenshot you need to edit a file, you must first close the browser before you can use the write_to_file tool.)`,
-												browserActionResult.screenshot ? [browserActionResult.screenshot] : [],
-											),
-										)
+										await this.say("browser_action_result", JSON.stringify(browserActionResult ?? {}))
+
+										// Prepare textual result for the AI (logs + conditional reminder)
+										let reminderText = ""
+										if (!browserPersistSession) { // Check persistence setting
+											reminderText = `\n\n(REMEMBER: If you need to use non-'browser_action' tools, you MUST close the browser first.)`
+										}
+										const aiToolResultContent = `Browser action '${action}' executed.
+Console logs:
+${browserActionResult?.logs || "(No logs)"}${reminderText}`
+
+										// Push the textual summary for the AI
+										pushToolResult(aiToolResultContent)
 										break
 									case "close":
 										pushToolResult(

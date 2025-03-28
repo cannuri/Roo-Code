@@ -513,6 +513,7 @@ export const globalSettingsSchema = z.object({
 	screenshotQuality: z.number().optional(),
 	remoteBrowserEnabled: z.boolean().optional(),
 	remoteBrowserHost: z.string().optional(),
+	browserPersistSession: z.boolean().optional(),
 
 	enableCheckpoints: z.boolean().optional(),
 	checkpointStorage: checkpointStoragesSchema.optional(),
@@ -583,6 +584,7 @@ const globalSettingsRecord: GlobalSettingsRecord = {
 	screenshotQuality: undefined,
 	remoteBrowserEnabled: undefined,
 	remoteBrowserHost: undefined,
+	browserPersistSession: undefined,
 
 	enableCheckpoints: undefined,
 	checkpointStorage: undefined,

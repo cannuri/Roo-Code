@@ -59,8 +59,9 @@ export class BrowserSession {
 	async launchBrowser(): Promise<void> {
 		console.log("launch browser called")
 		if (this.browser) {
-			// throw new Error("Browser already launched")
-			await this.closeBrowser() // this may happen when the model launches a browser again after having used it already before
+			// Browser already launched, do nothing.
+			// await this.closeBrowser() // Removed: Prevent closing existing browser on relaunch attempt
+			return // Exit early if browser is already running
 		}
 
 		// Function to get viewport size
@@ -85,6 +86,12 @@ export class BrowserSession {
 				defaultViewport: getViewport(),
 				// headless: false,
 			})
+			this.browser?.on("disconnected", () => {
+				console.warn("[BrowserSession] Local browser disconnected unexpectedly.")
+				this.browser = undefined
+				this.page = undefined
+				this.currentMousePosition = undefined
+			})
 			this.page = await this.browser?.newPage()
 			return
 		}
@@ -100,6 +107,13 @@ export class BrowserSession {
 				this.browser = await connect({
 					browserWSEndpoint,
 					defaultViewport: getViewport(),
+				})
+				this.browser?.on("disconnected", () => {
+					console.warn("[BrowserSession] Remote browser (cached endpoint) disconnected unexpectedly.")
+					this.browser = undefined
+					this.page = undefined
+					this.currentMousePosition = undefined
+					this.cachedWebSocketEndpoint = undefined // Clear invalid cached endpoint
 				})
 				this.page = await this.browser?.newPage()
 				return
@@ -139,6 +153,13 @@ export class BrowserSession {
 					browserWSEndpoint,
 					defaultViewport: getViewport(),
 				})
+				this.browser?.on("disconnected", () => {
+					console.warn("[BrowserSession] Remote browser (host) disconnected unexpectedly.")
+					this.browser = undefined
+					this.page = undefined
+					this.currentMousePosition = undefined
+					this.cachedWebSocketEndpoint = undefined // Clear potentially invalid cached endpoint
+				})
 				this.page = await this.browser?.newPage()
 				return
 			} catch (error) {
@@ -170,6 +191,13 @@ export class BrowserSession {
 						browserWSEndpoint: testResult.endpoint,
 						defaultViewport: getViewport(),
 					})
+					this.browser?.on("disconnected", () => {
+						console.warn("[BrowserSession] Remote browser (discovered) disconnected unexpectedly.")
+						this.browser = undefined
+						this.page = undefined
+						this.currentMousePosition = undefined
+						this.cachedWebSocketEndpoint = undefined // Clear potentially invalid cached endpoint
+					})
 					this.page = await this.browser?.newPage()
 					return
 				}
@@ -189,6 +217,12 @@ export class BrowserSession {
 			executablePath: stats.executablePath,
 			defaultViewport: getViewport(),
 			// headless: false,
+		})
+		this.browser?.on("disconnected", () => {
+			console.warn("[BrowserSession] Fallback local browser disconnected unexpectedly.")
+			this.browser = undefined
+			this.page = undefined
+			this.currentMousePosition = undefined
 		})
 		// (latest version of puppeteer does not add headless to user agent)
 		this.page = await this.browser?.newPage()
@@ -210,6 +244,14 @@ export class BrowserSession {
 			this.currentMousePosition = undefined
 		}
 		return {}
+	}
+
+	/**
+	 * Checks if the browser page is currently available and not closed.
+	 * @returns True if the page exists and is open, false otherwise.
+	 */
+	public isPageReady(): boolean {
+		return !!this.page && !this.page.isClosed()
 	}
 
 	async doAction(action: (page: Page) => Promise<void>): Promise<BrowserActionResult> {
@@ -295,6 +337,50 @@ export class BrowserSession {
 			currentUrl: this.page.url(),
 			currentMousePosition: this.currentMousePosition,
 		}
+	}
+
+	/**
+	 * Checks if the current browser page exists, is open, and matches the provided URL (after normalization).
+	 * @param url The URL to compare against.
+	 * @returns True if the page exists, is open, and the normalized URLs match, false otherwise.
+	 */
+	public isPageAtUrl(url: string): boolean {
+		if (!this.page || this.page.isClosed()) {
+			return false
+		}
+
+		const normalizeUrl = (urlString: string): string => {
+			try {
+				if (urlString && (urlString.startsWith("http:") || urlString.startsWith("https:"))) {
+					const parsed = new URL(urlString)
+					if (parsed.pathname.length > 1 && parsed.pathname.endsWith("/")) {
+						parsed.pathname = parsed.pathname.slice(0, -1)
+					}
+					return `${parsed.protocol}//${parsed.host}${parsed.pathname}${parsed.search}`
+				}
+			} catch (e) {
+				console.warn(`[normalizeUrl] Failed to parse URL: ${urlString}`, e)
+			}
+			return urlString.endsWith("/") ? urlString.slice(0, -1) : urlString
+		}
+
+		const currentUrl = this.page.url()
+		return normalizeUrl(currentUrl) === normalizeUrl(url)
+	}
+
+	/**
+	 * Captures the current state of the browser page (screenshot, logs, URL) without performing navigation.
+	 * Uses a minimal action within doAction to trigger state capture.
+	 * @returns A promise resolving to the BrowserActionResult containing the current state.
+	 */
+	public async getCurrentState(): Promise<BrowserActionResult> {
+		console.log("[BrowserSession] Capturing current state without navigation.")
+		// Use a minimal, non-intrusive action like evaluating 'true' to trigger doAction's state capture
+		return this.doAction(async (page) => {
+			await page.evaluate(() => true)
+			// Add a small delay in case the evaluation itself triggers micro-tasks
+			await delay(50)
+		})
 	}
 
 	async navigateToUrl(url: string): Promise<BrowserActionResult> {

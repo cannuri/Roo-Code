@@ -1405,6 +1405,15 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 						await this.updateGlobalState("browserViewportSize", browserViewportSize)
 						await this.postStateToWebview()
 						break
+					case "browserPersistSession": {
+						const value = message.bool ?? false
+						console.log(`[Backend] Received browserPersistSession message: ${value}`) // Added log
+						await this.updateGlobalState("browserPersistSession", value)
+						console.log(`[Backend] Updated global state for browserPersistSession to: ${value}`) // Added log
+						await this.postStateToWebview()
+						console.log(`[Backend] Posted updated state to webview after browserPersistSession update`) // Added log
+						break
+					}
 					case "remoteBrowserHost":
 						await this.updateGlobalState("remoteBrowserHost", message.text)
 						await this.postStateToWebview()
@@ -2133,6 +2142,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 				enableMcpServerCreation,
 				browserToolEnabled,
 				language,
+				browserPersistSession, // Add this
 			} = await this.getState()
 
 			// Create diffStrategy based on current model and settings
@@ -2185,6 +2195,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 				enableMcpServerCreation,
 				language,
 				rooIgnoreInstructions,
+				browserPersistSession, // Pass this
 			)
 			return systemPrompt
 		}
@@ -2627,6 +2638,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 			showRooIgnoredFiles,
 			language,
 			maxReadFileLine,
+			browserPersistSession, // Add browserPersistSession here
 		} = await this.getState()
 
 		const telemetryKey = process.env.POSTHOG_API_KEY
@@ -2667,6 +2679,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 			allowedCommands,
 			soundVolume: soundVolume ?? 0.5,
 			browserViewportSize: browserViewportSize ?? "900x600",
+			browserPersistSession: browserPersistSession ?? false, // Use the destructured value
 			screenshotQuality: screenshotQuality ?? 75,
 			remoteBrowserHost,
 			remoteBrowserEnabled: remoteBrowserEnabled ?? false,
@@ -2752,6 +2765,7 @@ export class ClineProvider extends EventEmitter<ClineProviderEvents> implements 
 			checkpointStorage: stateValues.checkpointStorage ?? "task",
 			soundVolume: stateValues.soundVolume,
 			browserViewportSize: stateValues.browserViewportSize ?? "900x600",
+			browserPersistSession: stateValues.browserPersistSession ?? false, // Added default false
 			screenshotQuality: stateValues.screenshotQuality ?? 75,
 			remoteBrowserHost: stateValues.remoteBrowserHost,
 			remoteBrowserEnabled: stateValues.remoteBrowserEnabled ?? false,

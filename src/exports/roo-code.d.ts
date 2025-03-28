@@ -497,4 +497,174 @@ interface RooCodeAPI extends EventEmitter<RooCodeEvents> {
 	log(message: string): void
 }
 
-export type { ClineMessage, GlobalSettings, ProviderSettings, RooCodeAPI, RooCodeEvents, RooCodeSettings, TokenUsage }
+export type ClineAsk =
+	| "followup"
+	| "command"
+	| "command_output"
+	| "completion_result"
+	| "tool"
+	| "api_req_failed"
+	| "resume_task"
+	| "resume_completed_task"
+	| "mistake_limit_reached"
+	| "browser_action_launch"
+	| "use_mcp_server"
+	| "finishTask"
+
+export type ClineSay =
+	| "task"
+	| "error"
+	| "api_req_started"
+	| "api_req_finished"
+	| "api_req_retried"
+	| "api_req_retry_delayed"
+	| "api_req_deleted"
+	| "text"
+	| "reasoning"
+	| "completion_result"
+	| "user_feedback"
+	| "user_feedback_diff"
+	| "command_output"
+	| "tool"
+	| "shell_integration_warning"
+	| "browser_action"
+	| "browser_action_result"
+	| "command"
+	| "mcp_server_request_started"
+	| "mcp_server_response"
+	| "new_task_started"
+	| "new_task"
+	| "checkpoint_saved"
+	| "rooignore_error"
+
+export interface ClineMessage {
+	ts: number
+	type: "ask" | "say"
+	ask?: ClineAsk
+	say?: ClineSay
+	text?: string
+	images?: string[]
+	partial?: boolean
+	reasoning?: string
+	conversationHistoryIndex?: number
+	checkpoint?: Record<string, unknown>
+	progressStatus?: ToolProgressStatus
+}
+
+export type SecretKey =
+	| "apiKey"
+	| "glamaApiKey"
+	| "openRouterApiKey"
+	| "awsAccessKey"
+	| "awsSecretKey"
+	| "awsSessionToken"
+	| "openAiApiKey"
+	| "geminiApiKey"
+	| "openAiNativeApiKey"
+	| "deepSeekApiKey"
+	| "mistralApiKey"
+	| "unboundApiKey"
+	| "requestyApiKey"
+
+export type GlobalStateKey =
+	| "apiProvider"
+	| "apiModelId"
+	| "glamaModelId"
+	| "glamaModelInfo"
+	| "awsRegion"
+	| "awsUseCrossRegionInference"
+	| "awsProfile"
+	| "awsUseProfile"
+	| "awsCustomArn"
+	| "vertexKeyFile"
+	| "vertexJsonCredentials"
+	| "vertexProjectId"
+	| "vertexRegion"
+	| "lastShownAnnouncementId"
+	| "customInstructions"
+	| "alwaysAllowReadOnly"
+	| "alwaysAllowReadOnlyOutsideWorkspace"
+	| "alwaysAllowWrite"
+	| "alwaysAllowWriteOutsideWorkspace"
+	| "alwaysAllowExecute"
+	| "alwaysAllowBrowser"
+	| "alwaysAllowMcp"
+	| "alwaysAllowModeSwitch"
+	| "alwaysAllowSubtasks"
+	| "taskHistory"
+	| "openAiBaseUrl"
+	| "openAiModelId"
+	| "openAiCustomModelInfo"
+	| "openAiUseAzure"
+	| "ollamaModelId"
+	| "ollamaBaseUrl"
+	| "lmStudioModelId"
+	| "lmStudioBaseUrl"
+	| "anthropicBaseUrl"
+	| "modelMaxThinkingTokens"
+	| "azureApiVersion"
+	| "openAiStreamingEnabled"
+	| "openAiR1FormatEnabled"
+	| "openRouterModelId"
+	| "openRouterModelInfo"
+	| "openRouterBaseUrl"
+	| "openRouterSpecificProvider"
+	| "openRouterUseMiddleOutTransform"
+	| "googleGeminiBaseUrl"
+	| "allowedCommands"
+	| "ttsEnabled"
+	| "ttsSpeed"
+	| "soundEnabled"
+	| "soundVolume"
+	| "diffEnabled"
+	| "enableCheckpoints"
+	| "checkpointStorage"
+	| "browserViewportSize"
+	| "browserPersistSession" // Added for browser session persistence
+	| "screenshotQuality"
+	| "remoteBrowserHost"
+	| "fuzzyMatchThreshold"
+	| "writeDelayMs"
+	| "terminalOutputLineLimit"
+	| "terminalShellIntegrationTimeout"
+	| "mcpEnabled"
+	| "enableMcpServerCreation"
+	| "alwaysApproveResubmit"
+	| "requestDelaySeconds"
+	| "rateLimitSeconds"
+	| "currentApiConfigName"
+	| "listApiConfigMeta"
+	| "vsCodeLmModelSelector"
+	| "mode"
+	| "modeApiConfigs"
+	| "customModePrompts"
+	| "customSupportPrompts"
+	| "enhancementApiConfigId"
+	| "experiments" // Map of experiment IDs to their enabled state
+	| "autoApprovalEnabled"
+	| "customModes" // Array of custom modes
+	| "unboundModelId"
+	| "requestyModelId"
+	| "requestyModelInfo"
+	| "unboundModelInfo"
+	| "modelTemperature"
+	| "modelMaxTokens"
+	| "mistralCodestralUrl"
+	| "maxOpenTabsContext"
+	| "maxWorkspaceFiles"
+	| "browserToolEnabled"
+	| "lmStudioSpeculativeDecodingEnabled"
+	| "lmStudioDraftModelId"
+	| "telemetrySetting"
+	| "showRooIgnoredFiles"
+	| "remoteBrowserEnabled"
+	| "language"
+	| "maxReadFileLine"
+	| "fakeAi"
+	| "pinnedApiConfigs" // Record of API config names that should be pinned to the top of the API provides dropdown
+
+export type ConfigurationKey = GlobalStateKey | SecretKey
+
+export type ConfigurationValues = Record<ConfigurationKey, any>
+
+export type { GlobalSettings, ProviderSettings, RooCodeAPI, RooCodeEvents, RooCodeSettings, TokenUsage }

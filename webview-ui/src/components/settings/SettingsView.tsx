@@ -110,6 +110,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 		alwaysAllowWriteOutsideWorkspace,
 		alwaysApproveResubmit,
 		browserToolEnabled,
+		browserPersistSession, // Restore destructuring
 		browserViewportSize,
 		enableCheckpoints,
 		checkpointStorage,
@@ -140,16 +141,20 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 	const apiConfiguration = useMemo(() => cachedState.apiConfiguration ?? {}, [cachedState.apiConfiguration])
 
 	useEffect(() => {
-		// Update only when currentApiConfigName is changed.
-		// Expected to be triggered by loadApiConfiguration/upsertApiConfiguration.
-		if (prevApiConfigName.current === currentApiConfigName) {
-			return
-		}
+		// Update cached state whenever the extension state changes from the backend.
+		// This ensures the UI reflects the true state after loading or saving.
+		// Compare stringified versions to avoid potential infinite loops if object references change but content doesn't.
+		const currentCachedStateString = JSON.stringify(cachedState)
+		const incomingExtensionStateString = JSON.stringify(extensionState)
 
-		setCachedState((prevCachedState) => ({ ...prevCachedState, ...extensionState }))
-		prevApiConfigName.current = currentApiConfigName
-		setChangeDetected(false)
-	}, [currentApiConfigName, extensionState, isChangeDetected])
+		if (incomingExtensionStateString !== currentCachedStateString) {
+			console.log("Syncing cachedState with extensionState via useEffect")
+			setCachedState(extensionState)
+			// Reset change detection flag when the state is synced from the backend.
+			setChangeDetected(false)
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [extensionState]) // Depend only on extensionState to avoid loops
 
 	// Bust the cache when settings are imported.
 	useEffect(() => {
@@ -160,15 +165,16 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 	}, [settingsImportedAt, extensionState])
 
 	const setCachedStateField: SetCachedStateField<keyof ExtensionStateContextType> = useCallback((field, value) => {
+		// Revert to standard behavior: update local cachedState and mark changes
 		setCachedState((prevState) => {
 			if (prevState[field] === value) {
 				return prevState
 			}
-
+			console.log(`Updating cachedState for ${field}`)
 			setChangeDetected(true)
 			return { ...prevState, [field]: value }
 		})
-	}, [])
+	}, []) // Remove cachedState from dependencies if it was added
 
 	const setApiConfigurationField = useCallback(
 		<K extends keyof ApiConfiguration>(field: K, value: ApiConfiguration[K]) => {
@@ -223,6 +229,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 			vscode.postMessage({ type: "alwaysAllowMcp", bool: alwaysAllowMcp })
 			vscode.postMessage({ type: "allowedCommands", commands: allowedCommands ?? [] })
 			vscode.postMessage({ type: "browserToolEnabled", bool: browserToolEnabled })
+			vscode.postMessage({ type: "browserPersistSession", bool: browserPersistSession }) // Restore message in handleSubmit
 			vscode.postMessage({ type: "soundEnabled", bool: soundEnabled })
 			vscode.postMessage({ type: "ttsEnabled", bool: ttsEnabled })
 			vscode.postMessage({ type: "ttsSpeed", value: ttsSpeed })
@@ -252,6 +259,8 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 			vscode.postMessage({ type: "alwaysAllowSubtasks", bool: alwaysAllowSubtasks })
 			vscode.postMessage({ type: "upsertApiConfiguration", text: currentApiConfigName, apiConfiguration })
 			vscode.postMessage({ type: "telemetrySetting", text: telemetrySetting })
+			// After successfully sending messages, reset the change detection flag.
+			// The useEffect will handle syncing if the state comes back updated.
 			setChangeDetected(false)
 		}
 	}
@@ -316,6 +325,9 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 	)
 
 	const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => ref.current?.scrollIntoView()
+
+	// Log the state value during render
+	console.log(`[UI Render] extensionState.browserPersistSession: ${extensionState.browserPersistSession}`) // Ensure single log
 
 	return (
 		<Tab>
@@ -432,6 +444,7 @@ const SettingsView = forwardRef<SettingsViewRef, SettingsViewProps>(({ onDone },
 				<div ref={browserRef}>
 					<BrowserSettings
 						browserToolEnabled={browserToolEnabled}
+						browserPersistSession={browserPersistSession} // Use cachedState again
 						browserViewportSize={browserViewportSize}
 						screenshotQuality={screenshotQuality}
 						remoteBrowserHost={remoteBrowserHost}

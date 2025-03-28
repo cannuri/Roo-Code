@@ -12,10 +12,81 @@ import { Cline } from "../Cline"
 import { ClineProvider } from "../webview/ClineProvider"
 import { ApiConfiguration, ModelInfo } from "../../shared/api"
 import { ApiStreamChunk } from "../../api/transform/stream"
+import { BrowserSession } from "../../services/browser/BrowserSession" // Import BrowserSession
 
 // Mock RooIgnoreController
 jest.mock("../ignore/RooIgnoreController")
 
+// Mock all MCP-related modules
+jest.mock(
+	"@modelcontextprotocol/sdk/types.js",
+	() => ({
+		CallToolResultSchema: {},
+		ListResourcesResultSchema: {},
+		ListResourceTemplatesResultSchema: {},
+		ListToolsResultSchema: {},
+		ReadResourceResultSchema: {},
+		ErrorCode: {
+			InvalidRequest: "InvalidRequest",
+			MethodNotFound: "MethodNotFound",
+			InternalError: "InternalError",
+		},
+		McpError: class McpError extends Error {
+			code: string
+			constructor(code: string, message: string) {
+				super(message)
+				this.code = code
+				this.name = "McpError"
+			}
+		},
+	}),
+	{ virtual: true },
+)
+
+jest.mock(
+	"@modelcontextprotocol/sdk/client/index.js",
+	() => ({
+		Client: jest.fn().mockImplementation(() => ({
+			connect: jest.fn().mockResolvedValue(undefined),
+			close: jest.fn().mockResolvedValue(undefined),
+			listTools: jest.fn().mockResolvedValue({ tools: [] }),
+			callTool: jest.fn().mockResolvedValue({ content: [] }),
+		})),
+	}),
+	{ virtual: true },
+)
+
+jest.mock(
+	"@modelcontextprotocol/sdk/client/stdio.js",
+	() => ({
+		StdioClientTransport: jest.fn().mockImplementation(() => ({
+			connect: jest.fn().mockResolvedValue(undefined),
+			close: jest.fn().mockResolvedValue(undefined),
+		})),
+	}),
+	{ virtual: true },
+)
+
+// Mock BrowserSession with controllable methods
+const mockCloseBrowser = jest.fn().mockResolvedValue(undefined)
+const mockNavigateToUrl = jest.fn().mockResolvedValue({}) // Default success
+jest.mock("../../services/browser/BrowserSession", () => {
+	return {
+		BrowserSession: jest.fn().mockImplementation(() => {
+			return {
+				closeBrowser: mockCloseBrowser,
+				navigateToUrl: mockNavigateToUrl,
+				// Add other methods used by Cline if necessary
+				launchBrowser: jest.fn().mockResolvedValue(undefined),
+				click: jest.fn().mockResolvedValue({}),
+				type: jest.fn().mockResolvedValue({}),
+				scrollDown: jest.fn().mockResolvedValue({}),
+				scrollUp: jest.fn().mockResolvedValue({}),
+				upload: jest.fn().mockResolvedValue({}),
+			}
+		}),
+	}
+})
 // Mock fileExistsAtPath
 jest.mock("../../utils/fs", () => ({
 	fileExistsAtPath: jest.fn().mockImplementation((filePath) => {
@@ -153,6 +224,7 @@ describe("Cline", () => {
 	let mockApiConfig: ApiConfiguration
 	let mockOutputChannel: any
 	let mockExtensionContext: vscode.ExtensionContext
+	// Removed mockBrowserSession variable, using global mock now
 
 	beforeEach(() => {
 		// Setup mock extension context
@@ -255,6 +327,15 @@ describe("Cline", () => {
 				},
 			],
 		}))
+		// Add mock for getState
+		mockProvider.getState = jest.fn().mockReturnValue({
+			browserPersistSession: false, // Default to false
+			// Add other necessary state properties if needed by Cline
+		})
+
+		// Reset mock function calls before each test
+		mockCloseBrowser.mockClear()
+		mockNavigateToUrl.mockClear().mockResolvedValue({}) // Reset to default success
 	})
 
 	describe("constructor", () => {
@@ -892,11 +973,11 @@ describe("Cline", () => {
 					const userContent = [
 						{
 							type: "text",
-							text: "Regular text with @/some/path",
+							text: "Regular text with 'some/path'",
 						} as const,
 						{
 							type: "text",
-							text: "<task>Text with @/some/path in task tags</task>",
+							text: "<task>Text with 'some/path' (see below for file content) in task tags</task>",
 						} as const,
 						{
 							type: "tool_result",
@@ -904,7 +985,7 @@ describe("Cline", () => {
 							content: [
 								{
 									type: "text",
-									text: "<feedback>Check @/some/path</feedback>",
+									text: "<feedback>Check 'some/path'</feedback>",
 								},
 							],
 						} as Anthropic.ToolResultBlockParam,
@@ -914,7 +995,7 @@ describe("Cline", () => {
 							content: [
 								{
 									type: "text",
-									text: "Regular tool result with @/path",
+									text: "Regular tool result with 'path'",
 								},
 							],
 						} as Anthropic.ToolResultBlockParam,
@@ -924,12 +1005,12 @@ describe("Cline", () => {
 					const [processedContent] = await cline["loadContext"](userContent)
 
 					// Regular text should not be processed
-					expect((processedContent[0] as Anthropic.TextBlockParam).text).toBe("Regular text with @/some/path")
+					expect((processedContent[0] as Anthropic.TextBlockParam).text).toBe("Regular text with 'some/path'")
 
 					// Text within task tags should be processed
 					expect((processedContent[1] as Anthropic.TextBlockParam).text).toContain("processed:")
 					expect(mockParseMentions).toHaveBeenCalledWith(
-						"<task>Text with @/some/path in task tags</task>",
+						"<task>Text with 'some/path' (see below for file content) in task tags</task>",
 						expect.any(String),
 						expect.any(Object),
 						expect.any(String),
@@ -940,7 +1021,7 @@ describe("Cline", () => {
 					const content1 = Array.isArray(toolResult1.content) ? toolResult1.content[0] : toolResult1.content
 					expect((content1 as Anthropic.TextBlockParam).text).toContain("processed:")
 					expect(mockParseMentions).toHaveBeenCalledWith(
-						"<feedback>Check @/some/path</feedback>",
+						"<feedback>Check 'some/path'</feedback>",
 						expect.any(String),
 						expect.any(Object),
 						expect.any(String),
@@ -949,7 +1030,7 @@ describe("Cline", () => {
 					// Regular tool result should not be processed
 					const toolResult2 = processedContent[3] as Anthropic.ToolResultBlockParam
 					const content2 = Array.isArray(toolResult2.content) ? toolResult2.content[0] : toolResult2.content
-					expect((content2 as Anthropic.TextBlockParam).text).toBe("Regular tool result with @/path")
+					expect((content2 as Anthropic.TextBlockParam).text).toBe("Regular tool result with 'path'")
 
 					await cline.abortTask(true)
 					await task.catch(() => {})
@@ -958,3 +1039,327 @@ describe("Cline", () => {
 		})
 	})
 })
+
+describe("Browser Session Persistence (presentAssistantMessage)", () => {
+	// Declare variables needed for this test block locally
+	let mockProvider: jest.Mocked<ClineProvider>
+	let mockApiConfig: ApiConfiguration
+	let cline: Cline
+	let taskPromise: Promise<void>
+	let mockExtensionContext: vscode.ExtensionContext // Declare here
+	let mockOutputChannel: vscode.OutputChannel // Declare here
+	let defaultState: any // Declare here, use 'any' or a proper type if available
+
+	beforeEach(() => {
+		// Re-initialize context and output channel locally to ensure scope
+		const storageUri = { fsPath: path.join(os.tmpdir(), "test-storage") }
+		mockExtensionContext = {
+			// Assign to the declared variable
+			globalState: { get: jest.fn(), update: jest.fn(), keys: jest.fn().mockReturnValue([]) },
+			globalStorageUri: storageUri,
+			workspaceState: { get: jest.fn(), update: jest.fn(), keys: jest.fn().mockReturnValue([]) },
+			secrets: { get: jest.fn(), store: jest.fn(), delete: jest.fn() },
+			extensionUri: { fsPath: "/mock/extension/path" },
+			extension: { packageJSON: { version: "1.0.0" } },
+		} as unknown as vscode.ExtensionContext
+		mockOutputChannel = {
+			// Assign to the declared variable
+			name: "mockChannel", // Added missing property
+			appendLine: jest.fn(),
+			append: jest.fn(),
+			clear: jest.fn(),
+			show: jest.fn(),
+			hide: jest.fn(),
+			dispose: jest.fn(),
+			replace: jest.fn(), // Added missing method
+		}
+
+		// Initialize mocks specific to this block
+		mockProvider = new ClineProvider(mockExtensionContext, mockOutputChannel) as jest.Mocked<ClineProvider>
+		mockApiConfig = {
+			// Re-assign mockApiConfig here if needed, or rely on outer scope
+			apiProvider: "anthropic",
+			apiModelId: "claude-3-5-sonnet-20241022",
+			apiKey: "test-api-key",
+		}
+
+		// Define defaultState *inside* beforeEach, after mockApiConfig is set
+		defaultState = {
+			// Assign to the declared variable (remove const)
+			apiConfiguration: mockApiConfig, // Now mockApiConfig is initialized
+			customInstructions: "",
+			mode: "code",
+			customModes: [],
+			customModePrompts: {},
+			experiments: {},
+			enableMcpServerCreation: false,
+			browserToolEnabled: true,
+			language: "en",
+			terminalOutputLineLimit: 100,
+			maxWorkspaceFiles: 200,
+			maxOpenTabsContext: 20,
+			showRooIgnoredFiles: true,
+			browserViewportSize: { width: 1024, height: 768 },
+			browserPersistSession: false, // Default state
+			lastShownAnnouncementId: undefined,
+			alwaysAllowReadOnly: false,
+			alwaysAllowReadOnlyOutsideWorkspace: false,
+			enableDiff: false,
+			enableCheckpoints: true,
+			checkpointStorage: "task",
+			fuzzyMatchThreshold: 1.0,
+			mcpEnabled: true,
+			alwaysApproveResubmit: false,
+			requestDelaySeconds: 0,
+			rateLimitSeconds: 0,
+			maxReadFileLine: 500,
+		}
+
+		// Mock provider methods needed for these tests
+		// Mock getState to return a Promise resolving to the state object
+		// Use 'as any' to bypass potential type mismatch for browserPersistSession if definition is missing
+		mockProvider.getState = jest.fn().mockResolvedValue(defaultState as any)
+		mockProvider.postMessageToWebview = jest.fn().mockResolvedValue(undefined)
+		mockProvider.postStateToWebview = jest.fn().mockResolvedValue(undefined)
+		// Add other mocks if needed
+
+		// Reset global browser mocks
+		mockCloseBrowser.mockClear()
+		mockNavigateToUrl.mockClear().mockResolvedValue({})
+
+		// Create Cline instance for this block's tests
+		;[cline, taskPromise] = Cline.create({
+			provider: mockProvider,
+			apiConfiguration: mockApiConfig,
+			task: "test task with browser",
+		})
+		taskPromise.catch(() => {}) // Handle potential rejection
+	})
+
+	// Refined inner afterEach
+	afterEach(async () => {
+		// Ensure the locally created cline instance is cleaned up
+		if (cline) {
+			await cline.abortTask(true)
+		}
+		// Spies will be restored within 'it' blocks
+		// Clear global mocks used
+		mockCloseBrowser.mockClear()
+		mockNavigateToUrl.mockClear().mockResolvedValue({})
+	})
+
+	it("should CLOSE session on non-browser tool call when persistence is OFF", async () => {
+		// Set specific state for this test using the defaultState defined in beforeEach
+		const testState = { ...defaultState, browserPersistSession: false }
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax
+
+		// Simulate the assistant message content with a non-browser tool
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "read_file",
+				params: { path: "test.txt" },
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Declare and assign spies locally
+		const askSpy = jest.spyOn(cline as any, "ask").mockResolvedValue({ response: "yesButtonClicked" })
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method that contains the logic
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser was called
+		expect(mockCloseBrowser).toHaveBeenCalledTimes(1)
+
+		askSpy.mockRestore()
+		saySpy.mockRestore()
+	})
+
+	it("should NOT CLOSE session on non-browser tool call when persistence is ON", async () => {
+		const testState = { ...defaultState, browserPersistSession: true } // Persistence ON
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax
+
+		// Simulate the assistant message content with a non-browser tool
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "read_file",
+				params: { path: "test.txt" },
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Declare and assign spies locally
+		const askSpy = jest.spyOn(cline as any, "ask").mockResolvedValue({ response: "yesButtonClicked" })
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser was NOT called
+		expect(mockCloseBrowser).not.toHaveBeenCalled()
+
+		// Spies restored in afterEach
+	})
+
+	it("should CLOSE session on 'browser_action' with 'close' action (Persistence ON)", async () => {
+		const testState = { ...defaultState, browserPersistSession: true } // Persistence ON
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax
+
+		// Simulate the assistant message content with a browser_action close
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "browser_action",
+				params: { action: "close" },
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Declare and assign spy locally
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser WAS called (explicit close action)
+		expect(mockCloseBrowser).toHaveBeenCalledTimes(1)
+
+		saySpy.mockRestore()
+	})
+
+	it("should CLOSE session on 'browser_action' with 'close' action (Persistence OFF)", async () => {
+		const testState = { ...defaultState, browserPersistSession: false } // Persistence OFF
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax
+
+		// Simulate the assistant message content with a browser_action close
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "browser_action",
+				params: { action: "close" },
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Declare and assign spy locally
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser WAS called (explicit close action)
+		expect(mockCloseBrowser).toHaveBeenCalledTimes(1)
+
+		// Spy restored in afterEach
+	})
+
+	it("should CLOSE session on error during 'browser_action' (Persistence ON)", async () => {
+		const testState = { ...defaultState, browserPersistSession: true } // Persistence ON
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax
+
+		// Configure the globally mocked navigateToUrl to reject for this test
+		mockNavigateToUrl.mockRejectedValue(new Error("Browser action failed"))
+
+		// Simulate the assistant message content causing the error
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "browser_action",
+				params: { action: "launch", url: "example.com" }, // Use 'launch' which calls navigateToUrl
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Declare and assign spies locally
+		const askSpy = jest.spyOn(cline as any, "ask").mockResolvedValue({ response: "yesButtonClicked" })
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method and expect it to handle the error internally
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser WAS called due to the error
+		expect(mockCloseBrowser).toHaveBeenCalledTimes(1)
+
+		askSpy.mockRestore()
+		saySpy.mockRestore()
+	})
+
+	it("should CLOSE session on error during 'browser_action' (Persistence OFF)", async () => {
+		const testState = { ...defaultState, browserPersistSession: false } // Persistence OFF
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax
+
+		// Configure the globally mocked navigateToUrl to reject for this test
+		mockNavigateToUrl.mockRejectedValue(new Error("Browser action failed"))
+
+		// Simulate the assistant message content causing the error
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "browser_action",
+				params: { action: "launch", url: "example.com" },
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Declare and assign spies locally
+		const askSpy = jest.spyOn(cline as any, "ask").mockResolvedValue({ response: "yesButtonClicked" })
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser WAS called due to the error
+		expect(mockCloseBrowser).toHaveBeenCalledTimes(1)
+
+		askSpy.mockRestore()
+		saySpy.mockRestore()
+	})
+
+	it("should not attempt to close if browserSession is null", async () => {
+		const testState = { ...defaultState, browserPersistSession: false } // Persistence OFF
+		mockProvider.getState.mockResolvedValue(testState as any) // Corrected syntax (Removed trailing })
+		;(cline as any).browserSession = null // Set internal session to null for this test
+		// Simulate the assistant message content with a non-browser tool
+		;(cline as any).assistantMessageContent = [
+			{
+				type: "tool_use",
+				id: "tool_123",
+				name: "read_file",
+				params: { path: "test.txt" },
+				partial: false,
+			},
+		]
+		;(cline as any).currentStreamingContentIndex = 0
+
+		// Mock ask/say if needed (read_file needs ask approval)
+		const askSpy = jest.spyOn(cline as any, "ask").mockResolvedValue({ response: "yesButtonClicked" })
+		const saySpy = jest.spyOn(cline as any, "say").mockResolvedValue(undefined)
+
+		// Call the method that contains the logic
+		await cline.presentAssistantMessage()
+
+		// Assert closeBrowser was NOT called because the session was null
+		expect(mockCloseBrowser).not.toHaveBeenCalled()
+
+		askSpy.mockRestore()
+		saySpy.mockRestore()
+	})
+	// Removed duplicated 'it' blocks from here down to the end of the describe block
+})
+
+// ... potentially other describe blocks ...

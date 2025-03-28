@@ -12,12 +12,14 @@ import { Section } from "./Section"
 
 type BrowserSettingsProps = HTMLAttributes<HTMLDivElement> & {
 	browserToolEnabled?: boolean
+	browserPersistSession?: boolean // Added
 	browserViewportSize?: string
 	screenshotQuality?: number
 	remoteBrowserHost?: string
 	remoteBrowserEnabled?: boolean
 	setCachedStateField: SetCachedStateField<
 		| "browserToolEnabled"
+		| "browserPersistSession" // Added
 		| "browserViewportSize"
 		| "screenshotQuality"
 		| "remoteBrowserHost"
@@ -27,6 +29,7 @@ type BrowserSettingsProps = HTMLAttributes<HTMLDivElement> & {
 
 export const BrowserSettings = ({
 	browserToolEnabled,
+	browserPersistSession, // Added
 	browserViewportSize,
 	screenshotQuality,
 	remoteBrowserHost,
@@ -134,6 +137,17 @@ export const BrowserSettings = ({
 
 				{browserToolEnabled && (
 					<div className="flex flex-col gap-3 pl-3 border-l-2 border-vscode-button-background">
+						<div>
+							<VSCodeCheckbox
+								checked={browserPersistSession}
+								onChange={(e: any) => setCachedStateField("browserPersistSession", e.target.checked)}>
+								<span className="font-medium">{t("settings:browserPersistSession.label")}</span>
+							</VSCodeCheckbox>
+							<div className="text-vscode-descriptionForeground text-sm mt-1">
+								{t("settings:browserPersistSession.description")}
+							</div>
+						</div>
+
 						<div>
 							<label className="block font-medium mb-1">{t("settings:browser.viewport.label")}</label>
 							<Select
