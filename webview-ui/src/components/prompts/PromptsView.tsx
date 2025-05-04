@@ -671,7 +671,7 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 								</div>
 							)}
 							{isToolsEditMode && findModeBySlug(visualMode, customModes) ? (
-								<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
+								<div className="flex flex-col gap-2">
 									{(Object.keys(TOOL_GROUPS) as ToolGroup[]).map((group) => {
 										const currentMode = getCurrentMode()
 										const isCustomMode = findModeBySlug(visualMode, customModes)
@@ -684,60 +684,44 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 										// For now, we allow editing all for custom modes as per test requirements
 										const isDisabled = !isCustomMode // || TOOL_GROUPS[group].alwaysAvailable;
 
-										return (
-											<VSCodeCheckbox
-												key={group}
-												checked={isGroupEnabled}
-												data-testid={`tool-permission-${group}-checkbox`} // Add data-testid
-												onChange={handleGroupChange(group, Boolean(isCustomMode), customMode)}
-												disabled={isDisabled}>
-												{t(`prompts:tools.toolNames.${group}`)}
-												{(() => {
-													const currentMode = getCurrentMode()
-													const groupEntry = currentMode?.groups?.find(
-														(g) => getGroupName(g) === group,
-													)
-													const options = Array.isArray(groupEntry)
-														? groupEntry[1]
-														: undefined
-													let description = ""
+										// Get description information
+										const groupEntry = currentMode?.groups?.find((g) => getGroupName(g) === group)
+										const options = Array.isArray(groupEntry) ? groupEntry[1] : undefined
+										let description = ""
 
-													if (group === "edit" && options?.fileRegex) {
-														description = options.description || `/${options.fileRegex}/`
-														return (
-															<div
-																className="text-xs text-vscode-descriptionForeground mt-0.5"
-																data-testid={`tool-permission-${group}-description`}>
-																{t("prompts:tools.allowedFiles")} {description}
-															</div>
-														)
-													} else if (
-														(group === "subtask" || group === "switch") &&
-														options?.slugRegex
-													) {
-														// Get matching mode names using the refactored function
-														const matchingNames = getMatchingModeNames(
-															options.slugRegex,
-															modes,
-														)
-														if (matchingNames.length > 0) {
-															// Format for expanded view: Allowed modes: Name1, Name2
-															description = `${t("prompts:tools.allowedModes")}: ${matchingNames.join(", ")}`
-														} else {
-															// Handle no matches or invalid regex - show nothing for now
-															description = ""
-														}
-														return (
-															<div
-																className="text-xs text-vscode-descriptionForeground mt-0.5"
-																data-testid={`tool-permission-${group}-description`}>
-																{description}
-															</div>
-														)
-													}
-													return null
-												})()}
-											</VSCodeCheckbox>
+										if (group === "edit" && options?.fileRegex) {
+											description = options.description || `/${options.fileRegex}/`
+											description = `${t("prompts:tools.allowedFiles")} ${description}`
+										} else if ((group === "subtask" || group === "switch") && options?.slugRegex) {
+											// Get matching mode names using the refactored function
+											const matchingNames = getMatchingModeNames(options.slugRegex, modes)
+											if (matchingNames.length > 0) {
+												// Format for expanded view: Allowed modes: Name1, Name2
+												description = `${t("prompts:tools.allowedModes")}: ${matchingNames.join(", ")}`
+											}
+										}
+
+										return (
+											<div key={group} className="mb-2">
+												<VSCodeCheckbox
+													checked={isGroupEnabled}
+													data-testid={`tool-permission-${group}-checkbox`}
+													onChange={handleGroupChange(
+														group,
+														Boolean(isCustomMode),
+														customMode,
+													)}
+													disabled={isDisabled}>
+													{t(`prompts:tools.toolNames.${group}`)}
+												</VSCodeCheckbox>
+												{description && (
+													<div
+														className="text-xs text-vscode-descriptionForeground mt-0.5 ml-6 w-full break-words"
+														data-testid={`tool-permission-${group}-description`}>
+														{description}
+													</div>
+												)}
+											</div>
 										)
 									})}
 								</div>
