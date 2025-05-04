@@ -264,9 +264,9 @@ type GlobalSettings = {
 				roleDefinition: string
 				customInstructions?: string | undefined
 				groups: (
-					| ("read" | "edit" | "browser" | "command" | "mcp" | "modes")
+					| ("read" | "edit" | "browser" | "command" | "mcp" | "subtask" | "switch" | "followup")
 					| [
-							"read" | "edit" | "browser" | "command" | "mcp" | "modes",
+							"read" | "edit" | "browser" | "command" | "mcp" | "subtask" | "switch" | "followup",
 							{
 								fileRegex?: string | undefined
 								description?: string | undefined

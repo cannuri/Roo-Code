@@ -653,7 +653,7 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 							)}
 							{isToolsEditMode && findModeBySlug(visualMode, customModes) ? (
 								<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
-									{availableGroups.map((group) => {
+									{(Object.keys(TOOL_GROUPS) as ToolGroup[]).map((group) => {
 										const currentMode = getCurrentMode()
 										const isCustomMode = findModeBySlug(visualMode, customModes)
 										const customMode = isCustomMode
@@ -661,12 +661,17 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 											? customMode?.groups?.some((g) => getGroupName(g) === group)
 											: currentMode?.groups?.some((g) => getGroupName(g) === group)
 
+										// Check if the group should be always available and thus potentially non-editable
+										// For now, we allow editing all for custom modes as per test requirements
+										const isDisabled = !isCustomMode // || TOOL_GROUPS[group].alwaysAvailable;
+
 										return (
 											<VSCodeCheckbox
 												key={group}
 												checked={isGroupEnabled}
+												data-testid={`tool-permission-${group}-checkbox`} // Add data-testid
 												onChange={handleGroupChange(group, Boolean(isCustomMode), customMode)}
-												disabled={!isCustomMode}>
+												disabled={isDisabled}>
 												{t(`prompts:tools.toolNames.${group}`)}
 												{group === "edit" && (
 													<div className="text-xs text-vscode-descriptionForeground mt-0.5">

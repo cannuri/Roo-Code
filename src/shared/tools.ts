@@ -202,19 +202,19 @@ export const TOOL_GROUPS: Record<ToolGroup, ToolGroupConfig> = {
 	mcp: {
 		tools: ["use_mcp_tool", "access_mcp_resource"],
 	},
-	modes: {
-		tools: ["switch_mode", "new_task"],
-		alwaysAvailable: true,
+	subtask: {
+		tools: ["new_task"],
+	},
+	switch: {
+		tools: ["switch_mode"],
+	},
+	followup: {
+		tools: ["ask_followup_question"],
 	},
 }
 
 // Tools that are always available to all modes.
-export const ALWAYS_AVAILABLE_TOOLS: ToolName[] = [
-	"ask_followup_question",
-	"attempt_completion",
-	"switch_mode",
-	"new_task",
-] as const
+export const ALWAYS_AVAILABLE_TOOLS: ToolName[] = ["attempt_completion"] as const
 
 export type DiffResult =
 	| { success: true; content: string; failParts?: DiffResult[] }

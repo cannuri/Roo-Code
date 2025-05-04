@@ -24,7 +24,10 @@
 			"edit": "Chỉnh sửa tệp",
 			"browser": "Sử dụng trình duyệt",
 			"command": "Chạy lệnh",
-			"mcp": "Sử dụng MCP"
+			"mcp": "Sử dụng MCP",
+			"subtask": "Tạo nhiệm vụ phụ",
+			"switch": "Chuyển đổi chế độ",
+			"followup": "Đặt câu hỏi tiếp theo"
 		}
 	},
 	"roleDefinition": {

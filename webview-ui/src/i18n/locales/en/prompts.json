@@ -24,7 +24,10 @@
 			"edit": "Edit Files",
 			"browser": "Use Browser",
 			"command": "Run Commands",
-			"mcp": "Use MCP"
+			"mcp": "Use MCP",
+			"subtask": "Create Subtasks",
+			"switch": "Switch Modes",
+			"followup": "Ask Follow-up Questions"
 		}
 	},
 	"roleDefinition": {

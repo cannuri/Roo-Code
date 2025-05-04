@@ -24,7 +24,10 @@
 			"edit": "Edytuj pliki",
 			"browser": "Używaj przeglądarki",
 			"command": "Uruchamiaj polecenia",
-			"mcp": "Używaj MCP"
+			"mcp": "Używaj MCP",
+			"subtask": "Utwórz podzadania",
+			"switch": "Przełącz tryby",
+			"followup": "Zadaj pytania uzupełniające"
 		}
 	},
 	"roleDefinition": {

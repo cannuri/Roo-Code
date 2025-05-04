@@ -24,7 +24,10 @@
 			"edit": "Editar fitxers",
 			"browser": "Utilitzar navegador",
 			"command": "Executar comandes",
-			"mcp": "Utilitzar MCP"
+			"mcp": "Utilitzar MCP",
+			"subtask": "Crear subtasques",
+			"switch": "Canviar de mode",
+			"followup": "Fer preguntes de seguiment"
 		}
 	},
 	"roleDefinition": {

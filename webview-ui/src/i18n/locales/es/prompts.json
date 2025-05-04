@@ -24,7 +24,10 @@
 			"edit": "Editar archivos",
 			"browser": "Usar navegador",
 			"command": "Ejecutar comandos",
-			"mcp": "Usar MCP"
+			"mcp": "Usar MCP",
+			"subtask": "Crear subtareas",
+			"switch": "Cambiar de modo",
+			"followup": "Hacer preguntas de seguimiento"
 		}
 	},
 	"roleDefinition": {

@@ -24,7 +24,10 @@
 			"edit": "파일 편집",
 			"browser": "브라우저 사용",
 			"command": "명령 실행",
-			"mcp": "MCP 사용"
+			"mcp": "MCP 사용",
+			"subtask": "하위 작업 생성",
+			"switch": "모드 전환",
+			"followup": "후속 질문하기"
 		}
 	},
 	"roleDefinition": {

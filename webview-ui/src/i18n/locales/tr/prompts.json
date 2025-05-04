@@ -24,7 +24,10 @@
 			"edit": "Dosyaları Düzenle",
 			"browser": "Tarayıcı Kullan",
 			"command": "Komutları Çalıştır",
-			"mcp": "MCP Kullan"
+			"mcp": "MCP Kullan",
+			"subtask": "Alt görevler oluştur",
+			"switch": "Modları değiştir",
+			"followup": "Takip soruları sor"
 		}
 	},
 	"roleDefinition": {

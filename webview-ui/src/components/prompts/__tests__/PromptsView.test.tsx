@@ -196,3 +196,227 @@ describe("PromptsView", () => {
 		})
 	})
 })
+
+describe("PromptsView - Custom Mode Editing", () => {
+	const customMode = {
+		slug: "custom-test-mode",
+		name: "Custom Test Mode",
+		roleDefinition: "Act as a custom test mode.",
+		groups: [],
+		toolPermissions: {}, // Start with no specific tool permissions
+	}
+
+	const renderWithCustomMode = (currentModeSlug = customMode.slug) => {
+		const mockOnDone = jest.fn()
+		return render(
+			<ExtensionStateContext.Provider
+				value={
+					{
+						...mockExtensionState,
+						mode: currentModeSlug,
+						customModes: [customMode],
+						customModePrompts: {
+							[customMode.slug]: customMode,
+						},
+					} as any
+				}>
+				<PromptsView onDone={mockOnDone} />
+			</ExtensionStateContext.Provider>,
+		)
+	}
+
+	beforeEach(() => {
+		jest.clearAllMocks()
+	})
+
+	it("renders the custom mode tab", () => {
+		renderWithCustomMode()
+		expect(screen.getByTestId(`${customMode.slug}-tab`)).toBeInTheDocument()
+		expect(screen.getByTestId(`${customMode.slug}-tab`)).toHaveAttribute("data-active", "true")
+	})
+
+	// --- NEW Tool Permission Tests (Expected to Fail) ---
+
+	it("renders the subtask permission checkbox for custom modes", async () => {
+		renderWithCustomMode()
+		// Click the edit button first
+		const editButton = screen.getByTitle("prompts:tools.editTools") // Assuming English translation
+		fireEvent.click(editButton)
+		// Now find the checkbox
+		const checkbox = await screen.findByTestId("tool-permission-subtask-checkbox")
+		expect(checkbox).toBeInTheDocument()
+		expect(checkbox).not.toBeChecked() // Assuming default is unchecked
+	})
+
+	it("renders the switch permission checkbox for custom modes", async () => {
+		renderWithCustomMode()
+		// Click the edit button first
+		const editButton = screen.getByTitle("prompts:tools.editTools") // Assuming English translation
+		fireEvent.click(editButton)
+		// Now find the checkbox
+		const checkbox = await screen.findByTestId("tool-permission-switch-checkbox")
+		expect(checkbox).toBeInTheDocument()
+		expect(checkbox).not.toBeChecked() // Assuming default is unchecked
+	})
+
+	it("renders the followup permission checkbox for custom modes", async () => {
+		renderWithCustomMode()
+		// Click the edit button first
+		const editButton = screen.getByTitle("prompts:tools.editTools") // Assuming English translation
+		fireEvent.click(editButton)
+		// Now find the checkbox
+		const checkbox = await screen.findByTestId("tool-permission-followup-checkbox")
+		expect(checkbox).toBeInTheDocument()
+		expect(checkbox).not.toBeChecked() // Assuming default is unchecked
+	})
+
+	it("updates state when subtask permission checkbox is clicked", async () => {
+		const { rerender } = renderWithCustomMode() // Capture rerender
+		// Click the edit button first
+		const editButton = screen.getByTitle("prompts:tools.editTools") // Assuming English translation
+		fireEvent.click(editButton)
+		// Now find the checkbox
+		const checkbox = await screen.findByTestId("tool-permission-subtask-checkbox")
+		fireEvent.click(checkbox)
+
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "updateCustomMode",
+			slug: customMode.slug,
+			modeConfig: {
+				...customMode,
+				groups: ["subtask"], // Expect group to be added
+				source: "global", // Assuming default source
+			},
+		})
+
+		// Simulate state update by re-rendering with the new group
+		const updatedSubtaskMode = { ...customMode, groups: ["subtask"] }
+		rerender(
+			<ExtensionStateContext.Provider
+				value={
+					{
+						...mockExtensionState,
+						mode: customMode.slug,
+						customModes: [updatedSubtaskMode],
+						customModePrompts: {
+							[customMode.slug]: updatedSubtaskMode,
+						},
+					} as any
+				}>
+				<PromptsView onDone={jest.fn()} />
+			</ExtensionStateContext.Provider>,
+		)
+
+		// Click again to uncheck
+		fireEvent.click(checkbox)
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "updateCustomMode",
+			slug: customMode.slug,
+			modeConfig: {
+				...customMode,
+				groups: [], // Expect group to be removed
+				source: "global",
+			},
+		})
+	})
+
+	it("updates state when switch permission checkbox is clicked", async () => {
+		const { rerender } = renderWithCustomMode() // Capture rerender
+		// Click the edit button first
+		const editButton = screen.getByTitle("prompts:tools.editTools") // Assuming English translation
+		fireEvent.click(editButton)
+		// Now find the checkbox
+		const checkbox = await screen.findByTestId("tool-permission-switch-checkbox")
+		fireEvent.click(checkbox)
+
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "updateCustomMode",
+			slug: customMode.slug,
+			modeConfig: {
+				...customMode,
+				groups: ["switch"], // Expect group to be added
+				source: "global",
+			},
+		})
+
+		// Simulate state update by re-rendering with the new group
+		const updatedSwitchMode = { ...customMode, groups: ["switch"] }
+		rerender(
+			<ExtensionStateContext.Provider
+				value={
+					{
+						...mockExtensionState,
+						mode: customMode.slug,
+						customModes: [updatedSwitchMode],
+						customModePrompts: {
+							[customMode.slug]: updatedSwitchMode,
+						},
+					} as any
+				}>
+				<PromptsView onDone={jest.fn()} />
+			</ExtensionStateContext.Provider>,
+		)
+
+		// Click again to uncheck
+		fireEvent.click(checkbox)
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "updateCustomMode",
+			slug: customMode.slug,
+			modeConfig: {
+				...customMode,
+				groups: [], // Expect group to be removed
+				source: "global",
+			},
+		})
+	})
+
+	it("updates state when followup permission checkbox is clicked", async () => {
+		const { rerender } = renderWithCustomMode() // Capture rerender
+		// Click the edit button first
+		const editButton = screen.getByTitle("prompts:tools.editTools") // Assuming English translation
+		fireEvent.click(editButton)
+		// Now find the checkbox
+		const checkbox = await screen.findByTestId("tool-permission-followup-checkbox")
+		fireEvent.click(checkbox)
+
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "updateCustomMode",
+			slug: customMode.slug,
+			modeConfig: {
+				...customMode,
+				groups: ["followup"], // Expect group to be added
+				source: "global",
+			},
+		})
+
+		// Simulate state update by re-rendering with the new group
+		const updatedFollowupMode = { ...customMode, groups: ["followup"] }
+		rerender(
+			<ExtensionStateContext.Provider
+				value={
+					{
+						...mockExtensionState,
+						mode: customMode.slug,
+						customModes: [updatedFollowupMode],
+						customModePrompts: {
+							[customMode.slug]: updatedFollowupMode,
+						},
+					} as any
+				}>
+				<PromptsView onDone={jest.fn()} />
+			</ExtensionStateContext.Provider>,
+		)
+
+		// Click again to uncheck
+		fireEvent.click(checkbox)
+		expect(vscode.postMessage).toHaveBeenCalledWith({
+			type: "updateCustomMode",
+			slug: customMode.slug,
+			modeConfig: {
+				...customMode,
+				groups: [], // Expect group to be removed
+				source: "global",
+			},
+		})
+	})
+})

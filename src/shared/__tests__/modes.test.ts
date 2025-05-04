@@ -31,8 +31,10 @@ describe("isToolAllowedForMode", () => {
 	]
 
 	it("allows always available tools", () => {
-		expect(isToolAllowedForMode("ask_followup_question", "markdown-editor", customModes)).toBe(true)
+		// Only attempt_completion is always available now
 		expect(isToolAllowedForMode("attempt_completion", "markdown-editor", customModes)).toBe(true)
+		// ask_followup_question is now in the 'followup' group and needs to be explicitly added to a mode
+		expect(isToolAllowedForMode("ask_followup_question", "markdown-editor", customModes)).toBe(false)
 	})
 
 	it("allows unrestricted tools", () => {
@@ -256,6 +258,104 @@ describe("isToolAllowedForMode", () => {
 	})
 })
 
+// New tests for default built-in mode permissions
+describe("default permissions for built-in modes", () => {
+	const builtInModes: ModeConfig[] = [] // Use empty array as customModes to test against built-in definitions
+	const modesToTest = ["architect", "ask", "debug", "orchestrator"]
+	const toolsToCheck = ["new_task", "switch_mode", "ask_followup_question"]
+
+	modesToTest.forEach((modeSlug) => {
+		describe(`mode: ${modeSlug}`, () => {
+			toolsToCheck.forEach((toolName) => {
+				/**
+				 * @test {isToolAllowedForMode} Verifies default tool permissions for built-in modes.
+				 * These tests are expected to FAIL until the corresponding groups ('subtask', 'switch', 'followup')
+				 * are added to the built-in mode definitions in src/shared/modes.ts.
+				 */
+				it(`should allow tool: ${toolName}`, () => {
+					// We expect this to be true eventually, but it should fail initially
+					expect(isToolAllowedForMode(toolName as any, modeSlug, builtInModes)).toBe(true)
+				})
+			})
+		})
+	})
+})
+// End of new tests
+describe('when tool group is "subtask"', () => {
+	const toolName = "new_task"
+	const requiredGroup = "subtask"
+
+	it('should return true if mode has the "subtask" group', () => {
+		const mode: ModeConfig = {
+			slug: "test-mode",
+			name: "Test Mode",
+			roleDefinition: "A test mode", // roleDefinition is required by ModeConfig
+			groups: [requiredGroup], // Use groups array
+		}
+		expect(isToolAllowedForMode(toolName, mode.slug, [mode])).toBe(true)
+	})
+
+	it('should return false if mode does not have the "subtask" group', () => {
+		const mode: ModeConfig = {
+			slug: "test-mode",
+			name: "Test Mode",
+			roleDefinition: "A test mode",
+			groups: [], // Do not include the required group
+		}
+		expect(isToolAllowedForMode(toolName, mode.slug, [mode])).toBe(false)
+	})
+})
+
+describe('when tool group is "switch"', () => {
+	const toolName = "switch_mode"
+	const requiredGroup = "switch"
+
+	it('should return true if mode has the "switch" group', () => {
+		const mode: ModeConfig = {
+			slug: "test-mode",
+			name: "Test Mode",
+			roleDefinition: "A test mode",
+			groups: [requiredGroup],
+		}
+		expect(isToolAllowedForMode(toolName, mode.slug, [mode])).toBe(true)
+	})
+
+	it('should return false if mode does not have the "switch" group', () => {
+		const mode: ModeConfig = {
+			slug: "test-mode",
+			name: "Test Mode",
+			roleDefinition: "A test mode",
+			groups: [],
+		}
+		expect(isToolAllowedForMode(toolName, mode.slug, [mode])).toBe(false)
+	})
+})
+
+describe('when tool group is "followup"', () => {
+	const toolName = "ask_followup_question"
+	const requiredGroup = "followup"
+
+	it('should return true if mode has the "followup" group', () => {
+		const mode: ModeConfig = {
+			slug: "test-mode",
+			name: "Test Mode",
+			roleDefinition: "A test mode",
+			groups: [requiredGroup],
+		}
+		expect(isToolAllowedForMode(toolName, mode.slug, [mode])).toBe(true)
+	})
+
+	it('should return false if mode does not have the "followup" group', () => {
+		const mode: ModeConfig = {
+			slug: "test-mode",
+			name: "Test Mode",
+			roleDefinition: "A test mode",
+			groups: [],
+		}
+		expect(isToolAllowedForMode(toolName, mode.slug, [mode])).toBe(false)
+	})
+})
+
 describe("FileRestrictionError", () => {
 	it("formats error message with pattern when no description provided", () => {
 		const error = new FileRestrictionError("Markdown Editor", "\\.md$", undefined, "test.js")
@@ -274,7 +374,7 @@ describe("FileRestrictionError", () => {
 				name: "🪲 Debug",
 				roleDefinition:
 					"You are Roo, an expert software debugger specializing in systematic problem diagnosis and resolution.",
-				groups: ["read", "edit", "browser", "command", "mcp"],
+				groups: ["read", "edit", "browser", "command", "mcp", "subtask", "switch", "followup"],
 			})
 			expect(debugMode?.customInstructions).toContain(
 				"Reflect on 5-7 different possible sources of the problem, distill those down to 1-2 most likely sources, and then add logs to validate your assumptions. Explicitly ask the user to confirm the diagnosis before fixing the problem.",

@@ -24,7 +24,10 @@
 			"edit": "ファイルを編集",
 			"browser": "ブラウザを使用",
 			"command": "コマンドを実行",
-			"mcp": "MCP を使用"
+			"mcp": "MCP を使用",
+			"subtask": "サブタスクを作成",
+			"switch": "モードを切り替え",
+			"followup": "フォローアップの質問をする"
 		}
 	},
 	"roleDefinition": {
