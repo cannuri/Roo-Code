@@ -19,6 +19,7 @@
 		"editTools": "Werkzeuge bearbeiten",
 		"doneEditing": "Bearbeitung abschließen",
 		"allowedFiles": "Erlaubte Dateien:",
+		"allowedModes": "Erlaubte Modi:",
 		"toolNames": {
 			"read": "Dateien lesen",
 			"edit": "Dateien bearbeiten",

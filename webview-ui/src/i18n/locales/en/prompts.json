@@ -19,6 +19,7 @@
 		"editTools": "Edit tools",
 		"doneEditing": "Done editing",
 		"allowedFiles": "Allowed files:",
+		"allowedModes": "Allowed modes:",
 		"toolNames": {
 			"read": "Read Files",
 			"edit": "Edit Files",

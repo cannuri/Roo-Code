@@ -19,6 +19,7 @@
 		"editTools": "編輯工具",
 		"doneEditing": "完成編輯",
 		"allowedFiles": "允許的檔案：",
+		"allowedModes": "允許的模式：",
 		"toolNames": {
 			"read": "讀取檔案",
 			"edit": "編輯檔案",

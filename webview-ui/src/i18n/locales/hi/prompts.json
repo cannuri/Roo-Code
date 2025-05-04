@@ -19,6 +19,7 @@
 		"editTools": "टूल्स संपादित करें",
 		"doneEditing": "संपादन पूरा हुआ",
 		"allowedFiles": "अनुमत फाइलें:",
+		"allowedModes": "अनुमत मोड्स:",
 		"toolNames": {
 			"read": "फाइलें पढ़ें",
 			"edit": "फाइलें संपादित करें",

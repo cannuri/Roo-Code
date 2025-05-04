@@ -47,6 +47,25 @@ function getGroupName(group: GroupEntry): ToolGroup {
 const PromptsView = ({ onDone }: PromptsViewProps) => {
 	const { t } = useAppTranslation()
 
+	// Helper function to get matching mode names from a slugRegex
+	const getMatchingModeNames = (regex: string, allModes: readonly ModeConfig[]): string[] => {
+		const getModeName = (slug: string): string => {
+			const mode = allModes.find((m) => m.slug === slug)
+			// Simply return the found name or the slug as fallback
+			return mode ? mode.name : slug
+		}
+
+		try {
+			const regexObj = new RegExp(regex)
+			const matchingModes = allModes.filter((mode) => regexObj.test(mode.slug))
+			return matchingModes.map((mode) => getModeName(mode.slug))
+		} catch (e) {
+			console.error("Invalid slugRegex:", regex, e)
+			// Indicate error state by returning an empty array
+			return []
+		}
+	}
+
 	const {
 		customModePrompts,
 		customSupportPrompts,
@@ -673,46 +692,102 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 												onChange={handleGroupChange(group, Boolean(isCustomMode), customMode)}
 												disabled={isDisabled}>
 												{t(`prompts:tools.toolNames.${group}`)}
-												{group === "edit" && (
-													<div className="text-xs text-vscode-descriptionForeground mt-0.5">
-														{t("prompts:tools.allowedFiles")}{" "}
-														{(() => {
-															const currentMode = getCurrentMode()
-															const editGroup = currentMode?.groups?.find(
-																(g) =>
-																	Array.isArray(g) &&
-																	g[0] === "edit" &&
-																	g[1]?.fileRegex,
-															)
-															if (!Array.isArray(editGroup)) return t("prompts:allFiles")
-															return (
-																editGroup[1].description ||
-																`/${editGroup[1].fileRegex}/`
-															)
-														})()}
-													</div>
-												)}
+												{(() => {
+													const currentMode = getCurrentMode()
+													const groupEntry = currentMode?.groups?.find(
+														(g) => getGroupName(g) === group,
+													)
+													const options = Array.isArray(groupEntry)
+														? groupEntry[1]
+														: undefined
+													let description = ""
+
+													if (group === "edit" && options?.fileRegex) {
+														description = options.description || `/${options.fileRegex}/`
+														return (
+															<div
+																className="text-xs text-vscode-descriptionForeground mt-0.5"
+																data-testid={`tool-permission-${group}-description`}>
+																{t("prompts:tools.allowedFiles")} {description}
+															</div>
+														)
+													} else if (
+														(group === "subtask" || group === "switch") &&
+														options?.slugRegex
+													) {
+														// Get matching mode names using the refactored function
+														const matchingNames = getMatchingModeNames(
+															options.slugRegex,
+															modes,
+														)
+														if (matchingNames.length > 0) {
+															// Format for expanded view: Allowed modes: Name1, Name2
+															description = `${t("prompts:tools.allowedModes")}: ${matchingNames.join(", ")}`
+														} else {
+															// Handle no matches or invalid regex - show nothing for now
+															description = ""
+														}
+														return (
+															<div
+																className="text-xs text-vscode-descriptionForeground mt-0.5"
+																data-testid={`tool-permission-${group}-description`}>
+																{description}
+															</div>
+														)
+													}
+													return null
+												})()}
 											</VSCodeCheckbox>
 										)
 									})}
 								</div>
 							) : (
-								<div className="text-sm text-vscode-foreground mb-2 leading-relaxed">
+								<div className="text-sm text-vscode-foreground mb-2 leading-relaxed flex flex-col gap-1">
 									{(() => {
 										const currentMode = getCurrentMode()
 										const enabledGroups = currentMode?.groups || []
-										return enabledGroups
-											.map((group) => {
-												const groupName = getGroupName(group)
-												const displayName = t(`prompts:tools.toolNames.${groupName}`)
-												if (Array.isArray(group) && group[1]?.fileRegex) {
-													const description =
-														group[1].description || `/${group[1].fileRegex}/`
-													return `${displayName} (${description})`
+										if (enabledGroups.length === 0) {
+											return (
+												<div className="text-vscode-descriptionForeground">
+													{t("prompts:tools.noToolsEnabled")}
+												</div>
+											)
+										}
+										return enabledGroups.map((group) => {
+											const groupName = getGroupName(group)
+											const options = Array.isArray(group) ? group[1] : undefined
+											const displayName = t(`prompts:tools.toolNames.${groupName}`)
+											let description = ""
+
+											if (groupName === "edit" && options?.fileRegex) {
+												description = options.description || `/${options.fileRegex}/`
+											} else if (
+												(groupName === "subtask" || groupName === "switch") &&
+												options?.slugRegex
+											) {
+												// Get matching mode names using the refactored function
+												const matchingNames = getMatchingModeNames(options.slugRegex, modes)
+												if (matchingNames.length > 0) {
+													// Format for collapsed view: (Name1, Name2)
+													description = `(${matchingNames.join(", ")})`
+												} else {
+													// Handle no matches or invalid regex - show nothing for now
+													description = ""
 												}
-												return displayName
-											})
-											.join(", ")
+											}
+
+											return (
+												<div key={groupName} data-testid={`tool-group-label-${groupName}`}>
+													<span>{displayName}</span>
+													{/* Render description directly if it exists (already includes parentheses) */}
+													{description && (
+														<span className="ml-1 text-xs text-vscode-descriptionForeground">
+															{description}
+														</span>
+													)}
+												</div>
+											)
+										})
 									})()}
 								</div>
 							)}

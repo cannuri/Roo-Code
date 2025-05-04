@@ -19,6 +19,7 @@
 		"editTools": "Chỉnh sửa công cụ",
 		"doneEditing": "Hoàn thành chỉnh sửa",
 		"allowedFiles": "Tệp được phép:",
+		"allowedModes": "Chế độ được phép:",
 		"toolNames": {
 			"read": "Đọc tệp",
 			"edit": "Chỉnh sửa tệp",

@@ -19,6 +19,7 @@
 		"editTools": "Araçları düzenle",
 		"doneEditing": "Düzenlemeyi bitir",
 		"allowedFiles": "İzin verilen dosyalar:",
+		"allowedModes": "İzin verilen modlar:",
 		"toolNames": {
 			"read": "Dosyaları Oku",
 			"edit": "Dosyaları Düzenle",

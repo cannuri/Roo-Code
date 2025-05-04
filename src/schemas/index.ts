@@ -186,6 +186,23 @@ export const groupOptionsSchema = z.object({
 			},
 			{ message: "Invalid regular expression pattern" },
 		),
+	slugRegex: z
+		.string()
+		.optional()
+		.refine(
+			(pattern) => {
+				if (!pattern) return true // Optional, valid if not provided
+				try {
+					new RegExp(pattern)
+					return true
+				} catch {
+					return false
+				}
+			},
+			// Use i18n for the message
+			// Using plain string due to persistent TS errors with t() here.
+			{ message: "Invalid regular expression pattern for slugRegex" },
+		),
 	description: z.string().optional(),
 })
 

@@ -19,6 +19,7 @@
 		"editTools": "도구 편집",
 		"doneEditing": "편집 완료",
 		"allowedFiles": "허용된 파일:",
+		"allowedModes": "허용된 모드:",
 		"toolNames": {
 			"read": "파일 읽기",
 			"edit": "파일 편집",

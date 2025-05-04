@@ -19,6 +19,7 @@
 		"editTools": "Edytuj narzędzia",
 		"doneEditing": "Zakończ edycję",
 		"allowedFiles": "Dozwolone pliki:",
+		"allowedModes": "Dozwolone tryby:",
 		"toolNames": {
 			"read": "Czytaj pliki",
 			"edit": "Edytuj pliki",

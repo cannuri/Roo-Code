@@ -19,6 +19,7 @@
 		"editTools": "编辑功能",
 		"doneEditing": "完成编辑",
 		"allowedFiles": "允许操作的文件：",
+		"allowedModes": "允许的模式：",
 		"toolNames": {
 			"read": "读取文件",
 			"edit": "编辑文件",

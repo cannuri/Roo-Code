@@ -269,6 +269,7 @@ type GlobalSettings = {
 							"read" | "edit" | "browser" | "command" | "mcp" | "subtask" | "switch" | "followup",
 							{
 								fileRegex?: string | undefined
+								slugRegex?: string | undefined
 								description?: string | undefined
 							},
 					  ]

@@ -19,6 +19,7 @@
 		"editTools": "Editar eines",
 		"doneEditing": "Finalitzar edició",
 		"allowedFiles": "Fitxers permesos:",
+		"allowedModes": "Modes permesos:",
 		"toolNames": {
 			"read": "Llegir fitxers",
 			"edit": "Editar fitxers",

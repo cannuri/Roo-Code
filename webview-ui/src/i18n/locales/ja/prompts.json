@@ -19,6 +19,7 @@
 		"editTools": "ツールを編集",
 		"doneEditing": "編集完了",
 		"allowedFiles": "許可されたファイル：",
+		"allowedModes": "許可されたモード：",
 		"toolNames": {
 			"read": "ファイルを読み込む",
 			"edit": "ファイルを編集",
