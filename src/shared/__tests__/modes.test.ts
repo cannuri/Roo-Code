@@ -30,11 +30,15 @@ describe("isToolAllowedForMode", () => {
 		},
 	]
 
-	it("allows always available tools", () => {
-		// Only attempt_completion is always available now
+	it("checks tool availability: always allowed and permission-based for 'markdown-editor'", () => {
+		// 'attempt_completion' is always allowed for any mode.
 		expect(isToolAllowedForMode("attempt_completion", "markdown-editor", customModes)).toBe(true)
-		// ask_followup_question is now in the 'followup' group and needs to be explicitly added to a mode
-		expect(isToolAllowedForMode("ask_followup_question", "markdown-editor", customModes)).toBe(false)
+
+		// The 'markdown-editor' custom mode (defined in customModes array) lacks 'followup', 'subtask', and 'switch' permissions.
+		// These tests verify that tools requiring these specific permissions are correctly disallowed for 'markdown-editor'.
+		expect(isToolAllowedForMode("ask_followup_question", "markdown-editor", customModes)).toBe(false) // Requires 'followup'
+		expect(isToolAllowedForMode("new_task", "markdown-editor", customModes)).toBe(false) // Requires 'subtask'
+		expect(isToolAllowedForMode("switch_mode", "markdown-editor", customModes)).toBe(false) // Requires 'switch'
 	})
 
 	it("allows unrestricted tools", () => {

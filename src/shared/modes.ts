@@ -211,26 +211,26 @@ export function isToolAllowedForMode(
 			continue
 		}
 
-		// If the tool is in the group and passed all relevant checks, check for fileRegex
+		// If there are no options, allow the tool
+		if (!options) {
+			return true
+		}
+
 		// For the edit group, check file regex if specified
-		if (groupName === "edit" && options?.fileRegex) {
+		if (groupName === "edit" && options && options.fileRegex) {
 			const filePath = toolParams?.path
 			if (
 				filePath &&
-				(toolParams.diff || toolParams.content || toolParams.operations) && // Check if it's an edit operation
+				(toolParams.diff || toolParams.content || toolParams.operations) &&
 				!doesFileMatchRegex(filePath, options.fileRegex)
 			) {
-				// Throw error only if it's an actual edit operation on a restricted file
 				throw new FileRestrictionError(mode.name, options.fileRegex, options.description, filePath)
 			}
-			// If it's not an edit operation (e.g., just reading) or the file matches, allow based on group membership below
 		}
 
-		// If the tool is in this group and passed all relevant checks, allow it
 		return true
 	}
 
-	// If the tool was not found in any allowed group for the mode
 	return false
 }
 

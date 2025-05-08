@@ -652,7 +652,7 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 								</div>
 							)}
 							{isToolsEditMode && findModeBySlug(visualMode, customModes) ? (
-								<div className="flex flex-col gap-2">
+								<div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
 									{(Object.keys(TOOL_GROUPS) as ToolGroup[]).map((group) => {
 										const currentMode = getCurrentMode()
 										const isCustomMode = findModeBySlug(visualMode, customModes)
@@ -701,7 +701,7 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 									})}
 								</div>
 							) : (
-								<div className="text-sm text-vscode-foreground mb-2 leading-relaxed flex flex-col gap-1">
+								<div className="text-sm text-vscode-foreground mb-2 leading-relaxed">
 									{(() => {
 										const currentMode = getCurrentMode()
 										const enabledGroups = currentMode?.groups || []
