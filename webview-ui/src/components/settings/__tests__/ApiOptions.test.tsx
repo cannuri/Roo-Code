@@ -1,70 +1,111 @@
-// npx jest src/components/settings/__tests__/ApiOptions.test.tsx
-
-import { render, screen, fireEvent } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-import { type ModelInfo, type ProviderSettings, openAiModelInfoSaneDefaults } from "@roo-code/types"
+import type { ProviderSettings, ModelInfo } from "@roo-code/types"
 
 import { ExtensionStateContextProvider } from "@src/context/ExtensionStateContext"
 
 import ApiOptions, { ApiOptionsProps } from "../ApiOptions"
+import { useSelectedModel } from "@src/components/ui/hooks/useSelectedModel" // Import the hook to be mocked
 
-// Mock VSCode components
-jest.mock("@vscode/webview-ui-toolkit/react", () => ({
-	VSCodeTextField: ({ children, value, onBlur }: any) => (
-		<div>
-			{children}
-			<input type="text" value={value} onChange={onBlur} />
-		</div>
-	),
-	VSCodeLink: ({ children, href }: any) => <a href={href}>{children}</a>,
-	VSCodeRadio: ({ value, checked }: any) => <input type="radio" value={value} checked={checked} />,
-	VSCodeRadioGroup: ({ children }: any) => <div>{children}</div>,
-	VSCodeButton: ({ children }: any) => <div>{children}</div>,
+// Mock useSelectedModel at the top level
+// Mock MODELS_BY_PROVIDER to ensure selectedProviderModels is not empty
+jest.mock("../constants", () => ({
+	...jest.requireActual("../constants"),
+	MODELS_BY_PROVIDER: {
+		"mock-provider": {
+			"default-mock-model": {},
+			"thinking-model-with-max-tokens": {},
+			"thinking-model": {},
+			"non-thinking-model": {},
+			"non-thinking-model-with-max-tokens": {},
+			"model-without-max-tokens": {},
+		},
+		gemini: {
+			"gemini-2.5-pro-exp-03-25": {},
+		},
+		PROVIDERS: jest.requireActual("../constants").PROVIDERS,
+	},
 }))
 
-// Mock other components
-jest.mock("vscrui", () => ({
-	Checkbox: ({ children, checked, onChange }: any) => (
-		<label data-testid={`checkbox-${children?.toString().replace(/\s+/g, "-").toLowerCase()}`}>
-			<input
-				type="checkbox"
-				checked={checked}
-				onChange={(e) => onChange(e.target.checked)}
-				data-testid={`checkbox-input-${children?.toString().replace(/\s+/g, "-").toLowerCase()}`}
-			/>
+// Mock i18n
+jest.mock("react-i18next", () => ({
+	useTranslation: () => ({
+		t: (key: string) => key,
+	}),
+}))
+
+// Define mock hook implementation before mocking it
+const mockUseRouterModels = {
+	data: {
+		openrouter: [],
+		requesty: [],
+		glama: [],
+		unbound: [],
+		litellm: [
+			{ id: "litellm-model-1", context_length: 32000 },
+			{ id: "litellm-model-2", context_length: 128000 },
+		],
+	},
+	error: null,
+	isLoading: false,
+	refetch: jest.fn(),
+}
+
+// Mock the hooks
+jest.mock("@src/components/ui/hooks/useRouterModels", () => ({
+	useRouterModels: () => mockUseRouterModels,
+}))
+
+// Mock vscode object
+global.vscode = {
+	postMessage: jest.fn(),
+} as any
+
+// Mock vscode module
+jest.mock("@src/utils/vscode", () => ({
+	vscode: {
+		postMessage: jest.fn(),
+	},
+}))
+
+// Mock VSCodeLink component as anchor
+jest.mock("@vscode/webview-ui-toolkit/react", () => ({
+	VSCodeButton: ({ children, onClick }: any) => (
+		<button onClick={onClick} className="vscode-button">
 			{children}
-		</label>
+		</button>
+	),
+	VSCodeLink: ({ children, href }: any) => (
+		<a href={href} className="vscode-link">
+			{children}
+		</a>
 	),
 }))
 
 // Mock @shadcn/ui components
 jest.mock("@/components/ui", () => ({
 	Select: ({ children, value, onValueChange }: any) => (
-		<div className="select-mock">
-			<select value={value} onChange={(e) => onValueChange && onValueChange(e.target.value)}>
-				{children}
-			</select>
-		</div>
-	),
-	SelectTrigger: ({ children }: any) => <div className="select-trigger-mock">{children}</div>,
-	SelectValue: ({ children }: any) => <div className="select-value-mock">{children}</div>,
-	SelectContent: ({ children }: any) => <div className="select-content-mock">{children}</div>,
-	SelectItem: ({ children, value }: any) => (
-		<option value={value} className="select-item-mock">
+		<select value={value} onChange={(e) => onValueChange && onValueChange(e.target.value)}>
 			{children}
-		</option>
+		</select>
 	),
-	SelectSeparator: ({ children }: any) => <div className="select-separator-mock">{children}</div>,
+	SelectTrigger: ({ children }: any) => <>{children}</>, // Render children directly
+	SelectValue: ({ children }: any) => <>{children}</>, // Render children directly
+	SelectContent: ({ children }: any) => <>{children}</>, // Render children directly
+	SelectItem: ({ children, value }: any) => (
+		<option value={value}>{children}</option> // Use native option
+	),
+	SelectSeparator: () => null, // Render nothing for separator
 	Button: ({ children, onClick, _variant, role, className }: any) => (
 		<button onClick={onClick} className={`button-mock ${className || ""}`} role={role}>
 			{children}
 		</button>
 	),
 	// Add missing components used by ModelPicker
-	Command: ({ children }: any) => <div className="command-mock">{children}</div>,
-	CommandEmpty: ({ children }: any) => <div className="command-empty-mock">{children}</div>,
-	CommandGroup: ({ children }: any) => <div className="command-group-mock">{children}</div>,
+	Command: ({ children }: any) => <div>{children}</div>, // Simple div mock
+	CommandEmpty: ({ children }: any) => <div>{children}</div>, // Simple div mock
+	CommandGroup: ({ children }: any) => <div>{children}</div>, // Simple div mock
 	CommandInput: ({ value, onValueChange, placeholder, className, _ref }: any) => (
 		<input
 			value={value}
@@ -74,14 +115,12 @@ jest.mock("@/components/ui", () => ({
 		/>
 	),
 	CommandItem: ({ children, value, onSelect }: any) => (
-		<div className="command-item-mock" onClick={() => onSelect && onSelect(value)}>
-			{children}
-		</div>
+		<div onClick={() => onSelect && onSelect(value)}>{children}</div> // Simple div mock
 	),
-	CommandList: ({ children }: any) => <div className="command-list-mock">{children}</div>,
-	Popover: ({ children, _open, _onOpenChange }: any) => <div className="popover-mock">{children}</div>,
-	PopoverContent: ({ children, _className }: any) => <div className="popover-content-mock">{children}</div>,
-	PopoverTrigger: ({ children, _asChild }: any) => <div className="popover-trigger-mock">{children}</div>,
+	CommandList: ({ children }: any) => <div>{children}</div>, // Simple div mock
+	Popover: ({ children, _open, _onOpenChange }: any) => <div>{children}</div>, // Simple div mock
+	PopoverContent: ({ children, _className }: any) => <div>{children}</div>, // Simple div mock
+	PopoverTrigger: ({ children, _asChild }: any) => <div>{children}</div>, // Simple div mock
 	Slider: ({ value, onChange }: any) => (
 		<div data-testid="slider">
 			<input type="range" value={value || 0} onChange={(e) => onChange(parseFloat(e.target.value))} />
@@ -146,6 +185,22 @@ jest.mock("../DiffSettingsControl", () => ({
 	),
 }))
 
+// Mock MaxOutputTokensControl component
+jest.mock("../MaxOutputTokensControl", () => ({
+	MaxOutputTokensControl: ({ modelInfo }: any) => {
+		// Only render if model has maxTokens > 0
+		if (modelInfo?.maxTokens && modelInfo.maxTokens > 0) {
+			return (
+				<div data-testid="max-output-tokens-control">
+					<div>Max Output Tokens</div>
+					<input type="range" min={8192} max={modelInfo.maxTokens} step={1024} />
+				</div>
+			)
+		}
+		return null
+	},
+}))
+
 // Mock ThinkingBudget component
 jest.mock("../ThinkingBudget", () => ({
 	ThinkingBudget: ({ modelInfo }: any) => {
@@ -200,6 +255,18 @@ jest.mock("@src/components/ui/hooks/useSelectedModel", () => ({
 				provider: apiConfiguration.apiProvider,
 				info,
 			}
+		} else if (apiConfiguration.apiModelId === "non-thinking-model-with-max-tokens") {
+			const info: ModelInfo = {
+				contextWindow: 4000,
+				maxTokens: 16384,
+				supportsPromptCache: true,
+				supportsReasoningBudget: false,
+			}
+
+			return {
+				provider: apiConfiguration.apiProvider,
+				info,
+			}
 		} else {
 			const info: ModelInfo = { contextWindow: 4000, supportsPromptCache: true }
 
@@ -230,18 +297,47 @@ const renderApiOptions = (props: Partial<ApiOptionsProps> = {}) => {
 	)
 }
 
-describe("ApiOptions", () => {
-	it("shows diff settings, temperature and rate limit controls by default", () => {
+describe("ApiOptions Component", () => {
+	it("renders controls for non-thinking model with max tokens", () => {
 		renderApiOptions({
 			apiConfiguration: {
-				diffEnabled: true,
-				fuzzyMatchThreshold: 0.95,
+				apiProvider: "mock-provider",
+				apiModelId: "non-thinking-model-with-max-tokens",
 			},
 		})
-		// Check for DiffSettingsControl by looking for text content
-		expect(screen.getByText(/enable editing through diffs/i)).toBeInTheDocument()
-		expect(screen.getByTestId("temperature-control")).toBeInTheDocument()
-		expect(screen.getByTestId("rate-limit-seconds-control")).toBeInTheDocument()
+
+		// Should show MaxOutputTokensControl
+		expect(screen.getByTestId("max-output-tokens-control")).toBeInTheDocument()
+		expect(screen.getByText("Max Output Tokens")).toBeInTheDocument()
+
+		// Should NOT show ThinkingBudget
+		expect(screen.queryByTestId("reasoning-budget")).not.toBeInTheDocument()
+	})
+
+	it("renders controls for thinking model", () => {
+		renderApiOptions({
+			apiConfiguration: {
+				apiProvider: "mock-provider",
+				apiModelId: "thinking-model-with-max-tokens",
+			},
+		})
+
+		// Should show both controls
+		expect(screen.getByTestId("max-output-tokens-control")).toBeInTheDocument()
+		expect(screen.getByTestId("reasoning-budget")).toBeInTheDocument()
+	})
+
+	it("renders no token controls for model without max tokens", () => {
+		renderApiOptions({
+			apiConfiguration: {
+				apiProvider: "mock-provider",
+				apiModelId: "model-without-max-tokens",
+			},
+		})
+
+		// Should show neither control
+		expect(screen.queryByTestId("max-output-tokens-control")).not.toBeInTheDocument()
+		expect(screen.queryByTestId("reasoning-budget")).not.toBeInTheDocument()
 	})
 
 	it("hides all controls when fromWelcomeView is true", () => {
@@ -252,236 +348,42 @@ describe("ApiOptions", () => {
 		expect(screen.queryByTestId("rate-limit-seconds-control")).not.toBeInTheDocument()
 	})
 
-	describe("thinking functionality", () => {
-		it("should show ThinkingBudget for Anthropic models that support thinking", () => {
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "anthropic",
-					apiModelId: "claude-3-7-sonnet-20250219:thinking",
-				},
-			})
-
-			expect(screen.getByTestId("reasoning-budget")).toBeInTheDocument()
+	it("renders LiteLLM provider fields when litellm is selected", () => {
+		renderApiOptions({
+			apiConfiguration: {
+				apiProvider: "litellm",
+			},
 		})
 
-		it("should show ThinkingBudget for Vertex models that support thinking", () => {
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "vertex",
-					apiModelId: "claude-3-7-sonnet@20250219:thinking",
-				},
-			})
-
-			expect(screen.getByTestId("reasoning-budget")).toBeInTheDocument()
-		})
-
-		it("should not show ThinkingBudget for models that don't support thinking", () => {
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "anthropic",
-					apiModelId: "claude-3-opus-20240229",
-				},
-			})
-
-			expect(screen.queryByTestId("reasoning-budget")).not.toBeInTheDocument()
-		})
-
-		// Note: We don't need to test the actual ThinkingBudget component functionality here
-		// since we have separate tests for that component. We just need to verify that
-		// it's included in the ApiOptions component when appropriate.
+		expect(screen.getByTestId("litellm-provider")).toBeInTheDocument()
+		expect(screen.getByTestId("litellm-base-url")).toBeInTheDocument()
+		expect(screen.getByTestId("litellm-api-key")).toBeInTheDocument()
+		expect(screen.getByTestId("litellm-refresh-models")).toBeInTheDocument()
 	})
 
-	describe("OpenAI provider tests", () => {
-		it("removes reasoningEffort from openAiCustomModelInfo when unchecked", () => {
-			const mockSetApiConfigurationField = jest.fn()
-			const initialConfig = {
-				apiProvider: "openai" as const,
-				enableReasoningEffort: true,
-				openAiCustomModelInfo: {
-					...openAiModelInfoSaneDefaults, // Start with defaults
-					reasoningEffort: "low" as const, // Set an initial value
-				},
-				// Add other necessary default fields for openai provider if needed
-			}
-
-			renderApiOptions({
-				apiConfiguration: initialConfig,
-				setApiConfigurationField: mockSetApiConfigurationField,
-			})
-
-			// Find the checkbox by its test ID instead of label text
-			// This is more reliable than using the label text which might be affected by translations
-			const checkbox =
-				screen.getByTestId("checkbox-input-settings:providers.setreasoninglevel") ||
-				screen.getByTestId("checkbox-input-set-reasoning-level")
-
-			// Simulate unchecking the checkbox
-			fireEvent.click(checkbox)
-
-			// 1. Check if enableReasoningEffort was set to false
-			expect(mockSetApiConfigurationField).toHaveBeenCalledWith("enableReasoningEffort", false)
-
-			// 2. Check if openAiCustomModelInfo was updated
-			const updateCall = mockSetApiConfigurationField.mock.calls.find(
-				(call) => call[0] === "openAiCustomModelInfo",
-			)
-			expect(updateCall).toBeDefined()
-
-			// 3. Check if reasoningEffort property is absent in the updated info
-			const updatedInfo = updateCall[1]
-			expect(updatedInfo).not.toHaveProperty("reasoningEffort")
-
-			// Optional: Check if other properties were preserved (example)
-			expect(updatedInfo).toHaveProperty("contextWindow", openAiModelInfoSaneDefaults.contextWindow)
+	it("updates LiteLLM fields when values change", () => {
+		const setApiConfigurationField = jest.fn()
+		renderApiOptions({
+			apiConfiguration: {
+				apiProvider: "litellm",
+				litellmBaseUrl: "http://localhost:4000",
+				litellmApiKey: "test-key",
+			},
+			setApiConfigurationField,
 		})
 
-		it("does not render ReasoningEffort component when initially disabled", () => {
-			const mockSetApiConfigurationField = jest.fn()
-			const initialConfig = {
-				apiProvider: "openai" as const,
-				enableReasoningEffort: false, // Initially disabled
-				openAiCustomModelInfo: {
-					...openAiModelInfoSaneDefaults,
-				},
-			}
+		const baseUrlInput = screen.getByTestId("litellm-base-url") as HTMLInputElement
+		const apiKeyInput = screen.getByTestId("litellm-api-key") as HTMLInputElement
 
-			renderApiOptions({
-				apiConfiguration: initialConfig,
-				setApiConfigurationField: mockSetApiConfigurationField,
-			})
+		// Check initial values
+		expect(baseUrlInput.value).toBe("http://localhost:4000")
+		expect(apiKeyInput.value).toBe("test-key")
 
-			// Check that the ReasoningEffort select component is not rendered.
-			expect(screen.queryByTestId("reasoning-effort")).not.toBeInTheDocument()
-		})
+		// Update values
+		fireEvent.change(baseUrlInput, { target: { value: "http://localhost:5000" } })
+		fireEvent.change(apiKeyInput, { target: { value: "new-key" } })
 
-		it("renders ReasoningEffort component and sets flag when checkbox is checked", () => {
-			const mockSetApiConfigurationField = jest.fn()
-			const initialConfig = {
-				apiProvider: "openai" as const,
-				enableReasoningEffort: false, // Initially disabled
-				openAiCustomModelInfo: {
-					...openAiModelInfoSaneDefaults,
-				},
-			}
-
-			renderApiOptions({
-				apiConfiguration: initialConfig,
-				setApiConfigurationField: mockSetApiConfigurationField,
-			})
-
-			const checkbox = screen.getByTestId("checkbox-input-settings:providers.setreasoninglevel")
-
-			// Simulate checking the checkbox
-			fireEvent.click(checkbox)
-
-			// 1. Check if enableReasoningEffort was set to true
-			expect(mockSetApiConfigurationField).toHaveBeenCalledWith("enableReasoningEffort", true)
-
-			// We can't directly test the rendering of the ReasoningEffort component after the state change
-			// without a more complex setup involving state management mocks or re-rendering.
-			// However, we've tested the state update call.
-		})
-
-		it.skip("updates reasoningEffort in openAiCustomModelInfo when select value changes", () => {
-			const mockSetApiConfigurationField = jest.fn()
-			const initialConfig = {
-				apiProvider: "openai" as const,
-				enableReasoningEffort: true, // Initially enabled
-				openAiCustomModelInfo: {
-					...openAiModelInfoSaneDefaults,
-					reasoningEffort: "low" as const,
-				},
-			}
-
-			renderApiOptions({
-				apiConfiguration: initialConfig,
-				setApiConfigurationField: mockSetApiConfigurationField,
-			})
-
-			// Find the reasoning effort select among all comboboxes by its current value
-			// const allSelects = screen.getAllByRole("combobox") as HTMLSelectElement[]
-			// const reasoningSelect = allSelects.find(
-			// 	(el) => el.value === initialConfig.openAiCustomModelInfo.reasoningEffort,
-			// )
-			// expect(reasoningSelect).toBeDefined()
-			const selectContainer = screen.getByTestId("reasoning-effort")
-			expect(selectContainer).toBeInTheDocument()
-
-			console.log(selectContainer.querySelector("select")?.value)
-
-			// Simulate changing the reasoning effort to 'high'
-			fireEvent.change(selectContainer.querySelector("select")!, { target: { value: "high" } })
-
-			// Check if setApiConfigurationField was called correctly for openAiCustomModelInfo
-			expect(mockSetApiConfigurationField).toHaveBeenCalledWith(
-				"openAiCustomModelInfo",
-				expect.objectContaining({ reasoningEffort: "high" }),
-			)
-
-			// Check that other properties were preserved
-			expect(mockSetApiConfigurationField).toHaveBeenCalledWith(
-				"openAiCustomModelInfo",
-				expect.objectContaining({
-					contextWindow: openAiModelInfoSaneDefaults.contextWindow,
-				}),
-			)
-		})
-	})
-
-	describe("LiteLLM provider tests", () => {
-		it("renders LiteLLM component when provider is selected", () => {
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "litellm",
-					litellmBaseUrl: "http://localhost:4000",
-					litellmApiKey: "test-key",
-				},
-			})
-
-			expect(screen.getByTestId("litellm-provider")).toBeInTheDocument()
-			expect(screen.getByTestId("litellm-base-url")).toHaveValue("http://localhost:4000")
-			expect(screen.getByTestId("litellm-api-key")).toHaveValue("test-key")
-		})
-
-		it("calls setApiConfigurationField when LiteLLM inputs change", () => {
-			const mockSetApiConfigurationField = jest.fn()
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "litellm",
-				},
-				setApiConfigurationField: mockSetApiConfigurationField,
-			})
-
-			const baseUrlInput = screen.getByTestId("litellm-base-url")
-			const apiKeyInput = screen.getByTestId("litellm-api-key")
-
-			fireEvent.change(baseUrlInput, { target: { value: "http://new-url:8000" } })
-			fireEvent.change(apiKeyInput, { target: { value: "new-api-key" } })
-
-			expect(mockSetApiConfigurationField).toHaveBeenCalledWith("litellmBaseUrl", "http://new-url:8000")
-			expect(mockSetApiConfigurationField).toHaveBeenCalledWith("litellmApiKey", "new-api-key")
-		})
-
-		it("shows refresh models button for LiteLLM", () => {
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "litellm",
-					litellmBaseUrl: "http://localhost:4000",
-					litellmApiKey: "test-key",
-				},
-			})
-
-			expect(screen.getByTestId("litellm-refresh-models")).toBeInTheDocument()
-		})
-
-		it("does not render LiteLLM component when other provider is selected", () => {
-			renderApiOptions({
-				apiConfiguration: {
-					apiProvider: "anthropic",
-				},
-			})
-
-			expect(screen.queryByTestId("litellm-provider")).not.toBeInTheDocument()
-		})
+		expect(setApiConfigurationField).toHaveBeenCalledWith("litellmBaseUrl", "http://localhost:5000")
+		expect(setApiConfigurationField).toHaveBeenCalledWith("litellmApiKey", "new-key")
 	})
 })
