@@ -18,8 +18,7 @@
 		"builtInModesText": "内置模式的可用功能不能被修改",
 		"editTools": "编辑功能",
 		"doneEditing": "完成编辑",
-		"allowedFiles": "允许操作的文件：",
-		"allowedModes": "允许的模式：",
+		"allowedFiles": "允许操作的文件",
 		"toolNames": {
 			"read": "读取文件",
 			"edit": "编辑文件",
@@ -28,7 +27,7 @@
 			"mcp": "MCP服务",
 			"subtask": "创建子任务",
 			"switch": "切换模式",
-			"followup": "提出后续问题"
+			"followup": "提问"
 		}
 	},
 	"roleDefinition": {

@@ -18,8 +18,7 @@
 		"builtInModesText": "Las herramientas para modos integrados no se pueden modificar",
 		"editTools": "Editar herramientas",
 		"doneEditing": "Terminar edición",
-		"allowedFiles": "Archivos permitidos:",
-		"allowedModes": "Modos permitidos:",
+		"allowedFiles": "Archivos permitidos",
 		"toolNames": {
 			"read": "Leer archivos",
 			"edit": "Editar archivos",
@@ -28,7 +27,7 @@
 			"mcp": "Usar MCP",
 			"subtask": "Crear subtareas",
 			"switch": "Cambiar de modo",
-			"followup": "Hacer preguntas de seguimiento"
+			"followup": "Hacer preguntas"
 		}
 	},
 	"roleDefinition": {

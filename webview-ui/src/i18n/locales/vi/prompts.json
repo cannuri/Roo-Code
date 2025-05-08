@@ -18,8 +18,7 @@
 		"builtInModesText": "Công cụ cho các chế độ tích hợp sẵn không thể được sửa đổi",
 		"editTools": "Chỉnh sửa công cụ",
 		"doneEditing": "Hoàn thành chỉnh sửa",
-		"allowedFiles": "Tệp được phép:",
-		"allowedModes": "Chế độ được phép:",
+		"allowedFiles": "Tệp được phép",
 		"toolNames": {
 			"read": "Đọc tệp",
 			"edit": "Chỉnh sửa tệp",
@@ -28,7 +27,7 @@
 			"mcp": "Sử dụng MCP",
 			"subtask": "Tạo nhiệm vụ phụ",
 			"switch": "Chuyển đổi chế độ",
-			"followup": "Đặt câu hỏi tiếp theo"
+			"followup": "Đặt câu hỏi"
 		}
 	},
 	"roleDefinition": {

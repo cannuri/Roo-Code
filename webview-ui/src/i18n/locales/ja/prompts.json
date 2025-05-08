@@ -18,8 +18,7 @@
 		"builtInModesText": "組み込みモードのツールは変更できません",
 		"editTools": "ツールを編集",
 		"doneEditing": "編集完了",
-		"allowedFiles": "許可されたファイル：",
-		"allowedModes": "許可されたモード：",
+		"allowedFiles": "許可されたファイル",
 		"toolNames": {
 			"read": "ファイルを読み込む",
 			"edit": "ファイルを編集",
@@ -28,7 +27,7 @@
 			"mcp": "MCP を使用",
 			"subtask": "サブタスクを作成",
 			"switch": "モードを切り替え",
-			"followup": "フォローアップの質問をする"
+			"followup": "質問をする"
 		}
 	},
 	"roleDefinition": {

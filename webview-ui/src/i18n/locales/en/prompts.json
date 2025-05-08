@@ -18,8 +18,7 @@
 		"builtInModesText": "Tools for built-in modes cannot be modified",
 		"editTools": "Edit tools",
 		"doneEditing": "Done editing",
-		"allowedFiles": "Allowed files:",
-		"allowedModes": "Allowed modes:",
+		"allowedFiles": "Allowed files",
 		"toolNames": {
 			"read": "Read Files",
 			"edit": "Edit Files",
@@ -28,7 +27,7 @@
 			"mcp": "Use MCP",
 			"subtask": "Create Subtasks",
 			"switch": "Switch Modes",
-			"followup": "Ask Follow-up Questions"
+			"followup": "Ask Questions"
 		}
 	},
 	"roleDefinition": {

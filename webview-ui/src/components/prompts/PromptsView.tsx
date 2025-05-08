@@ -47,25 +47,6 @@ function getGroupName(group: GroupEntry): ToolGroup {
 const PromptsView = ({ onDone }: PromptsViewProps) => {
 	const { t } = useAppTranslation()
 
-	// Helper function to get matching mode names from a slugRegex
-	const getMatchingModeNames = (regex: string, allModes: readonly ModeConfig[]): string[] => {
-		const getModeName = (slug: string): string => {
-			const mode = allModes.find((m) => m.slug === slug)
-			// Simply return the found name or the slug as fallback
-			return mode ? mode.name : slug
-		}
-
-		try {
-			const regexObj = new RegExp(regex)
-			const matchingModes = allModes.filter((mode) => regexObj.test(mode.slug))
-			return matchingModes.map((mode) => getModeName(mode.slug))
-		} catch (e) {
-			console.error("Invalid slugRegex:", regex, e)
-			// Indicate error state by returning an empty array
-			return []
-		}
-	}
-
 	const {
 		customModePrompts,
 		customSupportPrompts,
@@ -682,7 +663,7 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 
 										// Check if the group should be always available and thus potentially non-editable
 										// For now, we allow editing all for custom modes as per test requirements
-										const isDisabled = !isCustomMode // || TOOL_GROUPS[group].alwaysAvailable;
+										const isDisabled = !isCustomMode
 
 										// Get description information
 										const groupEntry = currentMode?.groups?.find((g) => getGroupName(g) === group)
@@ -691,15 +672,9 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 
 										if (group === "edit" && options?.fileRegex) {
 											description = options.description || `/${options.fileRegex}/`
-											description = `${t("prompts:tools.allowedFiles")} ${description}`
-										} else if ((group === "subtask" || group === "switch") && options?.slugRegex) {
-											// Get matching mode names using the refactored function
-											const matchingNames = getMatchingModeNames(options.slugRegex, modes)
-											if (matchingNames.length > 0) {
-												// Format for expanded view: Allowed modes: Name1, Name2
-												description = `${t("prompts:tools.allowedModes")}: ${matchingNames.join(", ")}`
-											}
+											description = `${t("prompts:tools.allowedFiles")}: ${description}`
 										}
+										// Removed slugRegex logic for subtask/switch groups
 
 										return (
 											<div key={group} className="mb-2">
@@ -745,20 +720,8 @@ const PromptsView = ({ onDone }: PromptsViewProps) => {
 
 											if (groupName === "edit" && options?.fileRegex) {
 												description = options.description || `/${options.fileRegex}/`
-											} else if (
-												(groupName === "subtask" || groupName === "switch") &&
-												options?.slugRegex
-											) {
-												// Get matching mode names using the refactored function
-												const matchingNames = getMatchingModeNames(options.slugRegex, modes)
-												if (matchingNames.length > 0) {
-													// Format for collapsed view: (Name1, Name2)
-													description = `(${matchingNames.join(", ")})`
-												} else {
-													// Handle no matches or invalid regex - show nothing for now
-													description = ""
-												}
 											}
+											// Removed slugRegex logic for subtask/switch groups
 
 											return (
 												<div key={groupName} data-testid={`tool-group-label-${groupName}`}>

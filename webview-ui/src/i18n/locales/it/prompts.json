@@ -18,8 +18,7 @@
 		"builtInModesText": "Gli strumenti per le modalità integrate non possono essere modificati",
 		"editTools": "Modifica strumenti",
 		"doneEditing": "Modifica completata",
-		"allowedFiles": "File consentiti:",
-		"allowedModes": "Modalità consentite:",
+		"allowedFiles": "File consentiti",
 		"toolNames": {
 			"read": "Leggi file",
 			"edit": "Modifica file",
@@ -28,7 +27,7 @@
 			"mcp": "Usa MCP",
 			"subtask": "Crea sotto-attività",
 			"switch": "Cambia modalità",
-			"followup": "Fai domande di follow-up"
+			"followup": "Fai domande"
 		}
 	},
 	"roleDefinition": {

@@ -18,8 +18,7 @@
 		"builtInModesText": "Les eines per a modes integrats no es poden modificar",
 		"editTools": "Editar eines",
 		"doneEditing": "Finalitzar edició",
-		"allowedFiles": "Fitxers permesos:",
-		"allowedModes": "Modes permesos:",
+		"allowedFiles": "Fitxers permesos",
 		"toolNames": {
 			"read": "Llegir fitxers",
 			"edit": "Editar fitxers",
@@ -28,7 +27,7 @@
 			"mcp": "Utilitzar MCP",
 			"subtask": "Crear subtasques",
 			"switch": "Canviar de mode",
-			"followup": "Fer preguntes de seguiment"
+			"followup": "Fer preguntes"
 		}
 	},
 	"roleDefinition": {

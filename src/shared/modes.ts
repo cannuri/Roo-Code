@@ -211,42 +211,7 @@ export function isToolAllowedForMode(
 			continue
 		}
 
-		// Check slugRegex for subtask and switch groups
-		if ((groupName === "subtask" || groupName === "switch") && options?.slugRegex) {
-			let targetSlug: string | undefined
-
-			if (tool === "new_task") {
-				// Prefer 'mode', fall back to legacy 'mode_slug'
-				targetSlug = toolParams?.mode ?? toolParams?.mode_slug
-			} else if (tool === "switch_mode") {
-				targetSlug = toolParams?.mode_slug
-			}
-
-			// Only apply slugRegex check if the target slug is actually provided
-			if (targetSlug) {
-				try {
-					const regex = new RegExp(options.slugRegex)
-					if (!regex.test(targetSlug)) {
-						// If the target slug does not match the regex, deny the tool
-						console.warn(
-							`Target slug '${targetSlug}' for tool '${tool}' in mode '${modeSlug}' does not match required pattern: ${options.slugRegex}`,
-						)
-						return false // Deny because regex failed
-					}
-					// If regex matches, proceed to the general group check below (implicitly by not returning false here)
-				} catch (error) {
-					console.error(
-						`Invalid slugRegex pattern '${options.slugRegex}' for group '${groupName}' in mode '${modeSlug}':`,
-						error,
-					)
-					return false // Deny if regex is invalid
-				}
-			}
-			// If targetSlug was not provided, we skip the regex check and proceed.
-			// The tool is allowed based on group membership, even if the regex couldn't be checked.
-		}
-
-		// If the tool is in the group and passed all relevant checks (like slugRegex), check for fileRegex
+		// If the tool is in the group and passed all relevant checks, check for fileRegex
 		// For the edit group, check file regex if specified
 		if (groupName === "edit" && options?.fileRegex) {
 			const filePath = toolParams?.path

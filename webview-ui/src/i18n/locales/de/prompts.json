@@ -18,8 +18,7 @@
 		"builtInModesText": "Werkzeuge für eingebaute Modi können nicht geändert werden",
 		"editTools": "Werkzeuge bearbeiten",
 		"doneEditing": "Bearbeitung abschließen",
-		"allowedFiles": "Erlaubte Dateien:",
-		"allowedModes": "Erlaubte Modi:",
+		"allowedFiles": "Erlaubte Dateien",
 		"toolNames": {
 			"read": "Dateien lesen",
 			"edit": "Dateien bearbeiten",
@@ -28,7 +27,7 @@
 			"mcp": "MCP verwenden",
 			"subtask": "Unteraufgaben erstellen",
 			"switch": "Modus wechseln",
-			"followup": "Nachfragen stellen"
+			"followup": "Fragen stellen"
 		}
 	},
 	"roleDefinition": {

@@ -18,8 +18,7 @@
 		"builtInModesText": "Yerleşik modlar için araçlar değiştirilemez",
 		"editTools": "Araçları düzenle",
 		"doneEditing": "Düzenlemeyi bitir",
-		"allowedFiles": "İzin verilen dosyalar:",
-		"allowedModes": "İzin verilen modlar:",
+		"allowedFiles": "İzin verilen dosyalar",
 		"toolNames": {
 			"read": "Dosyaları Oku",
 			"edit": "Dosyaları Düzenle",
@@ -28,7 +27,7 @@
 			"mcp": "MCP Kullan",
 			"subtask": "Alt görevler oluştur",
 			"switch": "Modları değiştir",
-			"followup": "Takip soruları sor"
+			"followup": "Soru sor"
 		}
 	},
 	"roleDefinition": {

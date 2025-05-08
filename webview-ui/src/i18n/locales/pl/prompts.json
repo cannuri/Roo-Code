@@ -18,8 +18,7 @@
 		"builtInModesText": "Narzędzia dla wbudowanych trybów nie mogą być modyfikowane",
 		"editTools": "Edytuj narzędzia",
 		"doneEditing": "Zakończ edycję",
-		"allowedFiles": "Dozwolone pliki:",
-		"allowedModes": "Dozwolone tryby:",
+		"allowedFiles": "Dozwolone pliki",
 		"toolNames": {
 			"read": "Czytaj pliki",
 			"edit": "Edytuj pliki",
@@ -28,7 +27,7 @@
 			"mcp": "Używaj MCP",
 			"subtask": "Utwórz podzadania",
 			"switch": "Przełącz tryby",
-			"followup": "Zadaj pytania uzupełniające"
+			"followup": "Zadaj pytania"
 		}
 	},
 	"roleDefinition": {
