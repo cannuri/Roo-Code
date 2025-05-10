@@ -4,7 +4,8 @@
 		"linesFromToEnd": " (linie {{start}}-koniec)",
 		"linesFromStartTo": " (linie 1-{{end}})",
 		"definitionsOnly": " (tylko definicje)",
-		"maxLines": " (maks. {{max}} linii)"
+		"maxLines": " (maks. {{max}} linii)",
+		"truncateTooltip": "To adjust this limit, click the Settings icon (⚙️) in the Roo-Code panel, then click on Context and find the 'File read auto-truncate threshold' option."
 	},
 	"toolRepetitionLimitReached": "Wygląda na to, że Roo utknął w pętli, wielokrotnie próbując wykonać tę samą akcję ({{toolName}}). Może to wskazywać na problem z jego obecną strategią. Rozważ przeformułowanie zadania, podanie bardziej szczegółowych instrukcji lub nakierowanie go na inne podejście."
 }

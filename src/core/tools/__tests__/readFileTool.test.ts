@@ -405,6 +405,146 @@ describe("read_file tool with maxReadFileLine setting", () => {
 			expect(rangeResult).toContain("</content>")
 		})
 	})
+
+	describe("ClineSayTool payload for isFileTruncated and totalLines", () => {
+		// Test Scenario A: Not Truncated - Small File
+		it("Scenario A: should set isFileTruncated: false, totalLines: actual for small files (not truncated)", async () => {
+			const totalLinesInFile = 5
+			mockInputContent = fileContent // 5 lines, matching totalLinesInFile
+
+			await executeReadFileTool(
+				{}, // No specific params like start/end line
+				{ maxReadFileLine: 10, totalLines: totalLinesInFile }, // maxReadFileLine > totalLines
+			)
+
+			expect(mockCline.say).toHaveBeenCalledTimes(1)
+			const sayArgs = mockCline.say.mock.calls[0]
+			const toolMetadata = sayArgs[1]?.tool
+
+			expect(toolMetadata).toBeDefined()
+			expect(toolMetadata.name).toBe("read_file")
+			expect(toolMetadata.isFileTruncated).toBe(false)
+			expect(toolMetadata.totalLines).toBe(totalLinesInFile)
+		})
+
+		// Test Scenario B: Truncated - Large File (no range)
+		it("Scenario B: should set isFileTruncated: true, totalLines: actual for large files (truncated, no range)", async () => {
+			const totalLinesInFile = 20
+			const maxLinesToRead = 10
+			mockInputContent = Array(totalLinesInFile).fill("Line content").join("\n")
+			mockedReadLines.mockResolvedValue(Array(maxLinesToRead).fill("Line content").join("\n"))
+
+			await executeReadFileTool(
+				{}, // No range
+				{ maxReadFileLine: maxLinesToRead, totalLines: totalLinesInFile }, // maxReadFileLine < totalLines
+			)
+
+			expect(mockCline.say).toHaveBeenCalledTimes(1)
+			const sayArgs = mockCline.say.mock.calls[0]
+			const toolMetadata = sayArgs[1]?.tool
+
+			expect(toolMetadata).toBeDefined()
+			expect(toolMetadata.name).toBe("read_file")
+			expect(toolMetadata.isFileTruncated).toBe(true)
+			expect(toolMetadata.totalLines).toBe(totalLinesInFile)
+		})
+
+		// Test Scenario C: Not Truncated - Range Read
+		it("Scenario C: should set isFileTruncated: false, totalLines: actual for range reads", async () => {
+			const totalLinesInFile = 20
+			const startLine = 5
+			const endLine = 10
+			mockInputContent = Array(totalLinesInFile).fill("Line content").join("\n")
+			mockedReadLines.mockResolvedValue(
+				Array(endLine - startLine + 1)
+					.fill("Line for range")
+					.join("\n"),
+			)
+
+			await executeReadFileTool(
+				{ start_line: String(startLine), end_line: String(endLine) },
+				{ maxReadFileLine: 3, totalLines: totalLinesInFile }, // maxReadFileLine is irrelevant for truncation status of range read
+			)
+
+			expect(mockCline.say).toHaveBeenCalledTimes(1)
+			const sayArgs = mockCline.say.mock.calls[0]
+			const toolMetadata = sayArgs[1]?.tool
+
+			expect(toolMetadata).toBeDefined()
+			expect(toolMetadata.name).toBe("read_file")
+			expect(toolMetadata.isFileTruncated).toBe(false) // Range reads are not "truncated" by maxReadFileLine
+			expect(toolMetadata.totalLines).toBe(totalLinesInFile)
+		})
+
+		// Test Scenario D: Definitions Only (maxReadFileLine = 0)
+		describe("Scenario D: when maxReadFileLine is 0 (definitions only)", () => {
+			it("should set isFileTruncated: true, totalLines: actual if totalLines > 0", async () => {
+				const totalLinesInFile = 5
+				mockedParseSourceCodeDefinitionsForFile.mockResolvedValue(sourceCodeDef)
+				// mockInputContent is not directly used for content part here
+
+				await executeReadFileTool(
+					{},
+					{
+						maxReadFileLine: 0,
+						totalLines: totalLinesInFile,
+						skipAddLineNumbersCheck: true, // addLineNumbers not called for content part
+					},
+				)
+
+				expect(mockCline.say).toHaveBeenCalledTimes(1)
+				const sayArgs = mockCline.say.mock.calls[0]
+				const toolMetadata = sayArgs[1]?.tool
+
+				expect(toolMetadata).toBeDefined()
+				expect(toolMetadata.name).toBe("read_file")
+				expect(toolMetadata.isFileTruncated).toBe(true) // Showing 0 lines of content
+				expect(toolMetadata.totalLines).toBe(totalLinesInFile)
+			})
+
+			it("should set isFileTruncated: false, totalLines: 0 if file is empty (totalLines = 0)", async () => {
+				const totalLinesInFile = 0
+				mockInputContent = "" // For extractTextFromFile if it's called for empty check
+				mockedParseSourceCodeDefinitionsForFile.mockResolvedValue("") // No defs for empty file
+				// mockedCountFileLines will be set to 0 by totalLines option below
+
+				await executeReadFileTool(
+					{},
+					{
+						maxReadFileLine: 0,
+						totalLines: totalLinesInFile,
+						// skipAddLineNumbersCheck: false (default) - extractTextFromFile -> addLineNumbers("") is called for empty check
+					},
+				)
+
+				expect(mockCline.say).toHaveBeenCalledTimes(1)
+				const sayArgs = mockCline.say.mock.calls[0]
+				const toolMetadata = sayArgs[1]?.tool
+
+				expect(toolMetadata).toBeDefined()
+				expect(toolMetadata.name).toBe("read_file")
+				expect(toolMetadata.isFileTruncated).toBe(false) // Empty file is not "truncated"
+				expect(toolMetadata.totalLines).toBe(totalLinesInFile)
+			})
+		})
+
+		// Test Scenario E: Full Read (maxReadFileLine = -1)
+		it("Scenario E: should set isFileTruncated: false, totalLines: actual for full read (maxReadFileLine = -1)", async () => {
+			const totalLinesInFile = 5
+			mockInputContent = fileContent // 5 lines
+
+			await executeReadFileTool({}, { maxReadFileLine: -1, totalLines: totalLinesInFile })
+
+			expect(mockCline.say).toHaveBeenCalledTimes(1)
+			const sayArgs = mockCline.say.mock.calls[0]
+			const toolMetadata = sayArgs[1]?.tool
+
+			expect(toolMetadata).toBeDefined()
+			expect(toolMetadata.name).toBe("read_file")
+			expect(toolMetadata.isFileTruncated).toBe(false)
+			expect(toolMetadata.totalLines).toBe(totalLinesInFile)
+		})
+	})
 })
 
 describe("read_file tool XML output structure", () => {

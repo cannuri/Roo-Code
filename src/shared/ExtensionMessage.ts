@@ -239,6 +239,8 @@ export interface ClineSayTool {
 	startLine?: number
 	endLine?: number
 	lineNumber?: number
+	isFileTruncated?: boolean
+	totalLines?: number
 }
 
 // Must keep in sync with system prompt.
