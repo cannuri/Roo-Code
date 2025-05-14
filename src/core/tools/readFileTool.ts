@@ -35,6 +35,8 @@ export async function readFileTool(
 		path: getReadablePath(cline.cwd, removeClosingTag("path", relPath)),
 		isOutsideWorkspace,
 	}
+
+	// wasAutoTruncated is now set directly in the completeMessage
 	try {
 		if (block.partial) {
 			const partialMessage = JSON.stringify({ ...sharedMessageProps, content: undefined } satisfies ClineSayTool)
@@ -124,18 +126,6 @@ export async function readFileTool(
 			cline.consecutiveMistakeCount = 0
 			const absolutePath = path.resolve(cline.cwd, relPath)
 
-			const completeMessage = JSON.stringify({
-				...sharedMessageProps,
-				content: absolutePath,
-				reason: lineSnippet,
-			} satisfies ClineSayTool)
-
-			const didApprove = await askApproval("tool", completeMessage)
-
-			if (!didApprove) {
-				return
-			}
-
 			// Count total lines in the file
 			let totalLines = 0
 
@@ -144,6 +134,26 @@ export async function readFileTool(
 			} catch (error) {
 				console.error(`Error counting lines in file ${absolutePath}:`, error)
 			}
+
+			const completeMessage = JSON.stringify({
+				...sharedMessageProps,
+				content: absolutePath,
+				// Only include reason (truncation message) if the file will actually be truncated
+				// or if it's a specific range read (not the default max lines message)
+				...(!isFullRead && maxReadFileLine > 0 && totalLines > maxReadFileLine
+					? { reason: lineSnippet, wasAutoTruncated: true }
+					: lineSnippet && lineSnippet !== t("tools:readFile.maxLines", { max: maxReadFileLine })
+						? { reason: lineSnippet }
+						: {}),
+			} satisfies ClineSayTool)
+
+			const didApprove = await askApproval("tool", completeMessage)
+
+			if (!didApprove) {
+				return
+			}
+
+			// totalLines is already counted above
 
 			// now execute the tool like normal
 			let content: string
@@ -161,6 +171,7 @@ export async function readFileTool(
 			} else if (!isBinary && maxReadFileLine >= 0 && totalLines > maxReadFileLine) {
 				// If file is too large, only read the first maxReadFileLine lines
 				isFileTruncated = true
+				// wasAutoTruncated is now set in the completeMessage
 
 				const res = await Promise.all([
 					maxReadFileLine > 0 ? readLines(absolutePath, maxReadFileLine - 1, 0) : "",
