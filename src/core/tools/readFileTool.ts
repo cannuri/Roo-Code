@@ -59,8 +59,13 @@ export async function readFileTool(
 			let startLine: number | undefined = undefined
 			let endLine: number | undefined = undefined
 
-			// Check if we have either range parameter and we're not doing a full read
-			if (!isFullRead && (startLineStr || endLineStr)) {
+			// Track if range parameters are provided, regardless of maxReadFileLine setting
+			// This is used for displaying the line range notification
+			let hasRangeParams = startLineStr || endLineStr
+
+			// For actual range reading behavior, only consider it a range read
+			// if we're not doing a full read (maxReadFileLine != -1)
+			if (!isFullRead && hasRangeParams) {
 				isRangeRead = true
 			}
 
@@ -109,14 +114,15 @@ export async function readFileTool(
 			// Create line snippet description for approval message
 			let lineSnippet = ""
 
-			if (isFullRead) {
-				// No snippet for full read
-			} else if (startLine !== undefined && endLine !== undefined) {
+			// Always set line snippet for range parameters, regardless of maxReadFileLine setting
+			if (startLine !== undefined && endLine !== undefined) {
 				lineSnippet = t("tools:readFile.linesRange", { start: startLine + 1, end: endLine + 1 })
 			} else if (startLine !== undefined) {
 				lineSnippet = t("tools:readFile.linesFromToEnd", { start: startLine + 1 })
 			} else if (endLine !== undefined) {
 				lineSnippet = t("tools:readFile.linesFromStartTo", { end: endLine + 1 })
+			} else if (isFullRead) {
+				// No snippet for full read without range parameters
 			} else if (maxReadFileLine === 0) {
 				lineSnippet = t("tools:readFile.definitionsOnly")
 			} else if (maxReadFileLine > 0) {
@@ -148,8 +154,11 @@ export async function readFileTool(
 				(!isFullRead && !isRangeRead && maxReadFileLine > 0 && totalLines > maxReadFileLine
 					? { reason: lineSnippet, wasAutoTruncated: true }
 					: lineSnippet &&
-						  // For range reads or other cases, include the reason without wasAutoTruncated
-						  (isRangeRead || lineSnippet !== t("tools:readFile.maxLines", { max: maxReadFileLine }))
+						  // For range parameters, always include the reason without wasAutoTruncated
+						  // regardless of maxReadFileLine setting
+						  (hasRangeParams ||
+								// For other cases, include the reason if it's not the default max lines message
+								lineSnippet !== t("tools:readFile.maxLines", { max: maxReadFileLine }))
 						? { reason: lineSnippet }
 						: {}),
 			} satisfies ClineSayTool)
