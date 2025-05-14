@@ -465,8 +465,16 @@ export const ChatRowContent = ({
 								{tool.path?.startsWith(".") && <span>.</span>}
 								<span className="whitespace-nowrap overflow-hidden text-ellipsis text-left mr-2 rtl">
 									{removeLeadingNonAlphanumeric(tool.path ?? "") + "\u200E"}
-									{tool.reason}
 								</span>
+								{tool.wasAutoTruncated && tool.reason && (
+									<span
+										title={t("tools:readFile.autoTruncateTooltip")}
+										className="inline-flex items-center">
+										{tool.reason}
+										<span className="codicon codicon-info ml-1" style={{ fontSize: "12px" }}></span>
+									</span>
+								)}
+								{!tool.wasAutoTruncated && tool.reason && <span>{tool.reason}</span>}
 								<div style={{ flexGrow: 1 }}></div>
 								<span
 									className={`codicon codicon-link-external`}
