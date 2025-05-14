@@ -140,9 +140,16 @@ export async function readFileTool(
 				content: absolutePath,
 				// Only include reason (truncation message) if the file will actually be truncated
 				// or if it's a specific range read (not the default max lines message)
-				...(!isFullRead && maxReadFileLine > 0 && totalLines > maxReadFileLine
+				...// Only set wasAutoTruncated to true when:
+				// 1. It's not a full read
+				// 2. It's not a range read (no explicit start_line/end_line)
+				// 3. maxReadFileLine is greater than 0
+				// 4. The total lines in the file exceed maxReadFileLine
+				(!isFullRead && !isRangeRead && maxReadFileLine > 0 && totalLines > maxReadFileLine
 					? { reason: lineSnippet, wasAutoTruncated: true }
-					: lineSnippet && lineSnippet !== t("tools:readFile.maxLines", { max: maxReadFileLine })
+					: lineSnippet &&
+						  // For range reads or other cases, include the reason without wasAutoTruncated
+						  (isRangeRead || lineSnippet !== t("tools:readFile.maxLines", { max: maxReadFileLine }))
 						? { reason: lineSnippet }
 						: {}),
 			} satisfies ClineSayTool)
