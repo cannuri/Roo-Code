@@ -467,11 +467,16 @@ export const ChatRowContent = ({
 									{removeLeadingNonAlphanumeric(tool.path ?? "") + "\u200E"}
 								</span>
 								{tool.wasAutoTruncated && tool.reason && (
-									<span
-										title={t("tools:readFile.autoTruncateTooltip")}
-										className="inline-flex items-center">
+									<span className="inline-flex items-center">
 										{tool.reason}
-										<span className="codicon codicon-info ml-1" style={{ fontSize: "12px" }}></span>
+										<span
+											className="codicon codicon-info ml-1"
+											style={{ fontSize: "12px" }}
+											title={t("tools:readFile.autoTruncateTooltip", {
+												settings: t("settings:header.title"),
+												context: t("settings:sections.contextManagement"),
+												threshold: t("settings:contextManagement.maxReadFile.label"),
+											})}></span>
 									</span>
 								)}
 								{!tool.wasAutoTruncated && tool.reason && <span>{tool.reason}</span>}
