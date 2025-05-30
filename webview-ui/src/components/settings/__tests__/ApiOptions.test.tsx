@@ -197,7 +197,6 @@ const renderApiOptions = (props: Partial<ApiOptionsProps> = {}) => {
 	const queryClient = new QueryClient()
 
 	// Log the value of useSelectedModel for debugging
-	console.log("useSelectedModel mock return value:", (useSelectedModel as jest.Mock).mock.results)
 
 	render(
 		<ExtensionStateContextProvider>
