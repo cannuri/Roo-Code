@@ -126,10 +126,10 @@ describe("ThinkingBudget", () => {
 		render(
 			<ThinkingBudget
 				{...defaultProps}
-				apiConfiguration={{ 
-					modelMaxTokens: 10000, 
+				apiConfiguration={{
+					modelMaxTokens: 10000,
 					modelMaxThinkingTokens: 9000,
-					enableReasoningEffort: true 
+					enableReasoningEffort: true,
 				}}
 				setApiConfigurationField={setApiConfigurationField}
 			/>,
@@ -140,10 +140,12 @@ describe("ThinkingBudget", () => {
 	})
 
 	it("should use default thinking tokens if not provided", () => {
-		render(<ThinkingBudget {...defaultProps} apiConfiguration={{ modelMaxTokens: 10000, enableReasoningEffort: true }} />)
+		render(<ThinkingBudget {...defaultProps} apiConfiguration={{ enableReasoningEffort: true }} />)
 
 		const slider = screen.getByTestId("slider")
-		expect(slider).toHaveValue("8192") // DEFAULT_HYBRID_REASONING_MODEL_THINKING_TOKENS
+		// Default is 8192, but capped at 80% of max output tokens (16384 * 0.8 = 13107.2, rounded down)
+		// Since default max output tokens is 16384 and 8192 < 13107, it should be 8192
+		expect(slider).toHaveValue("8192")
 	})
 
 	it("should render reasoning effort select for models that support it", () => {

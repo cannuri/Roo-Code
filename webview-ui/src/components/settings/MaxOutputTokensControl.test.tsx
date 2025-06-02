@@ -1,7 +1,10 @@
 import React from "react"
 import { render, screen } from "@testing-library/react"
+
+import type { ProviderSettings, ModelInfo } from "@roo-code/types"
+
 import { MaxOutputTokensControl } from "./MaxOutputTokensControl"
-import { ApiConfiguration, ModelInfo } from "@roo/shared/api"
+import { Slider } from "@src/components/ui"
 
 // Mock ResizeObserver globally
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
@@ -11,33 +14,28 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
 }))
 // Static import of Slider removed again to avoid TS error for non-existent module
 
-// Mock i18n
-jest.mock("react-i18next", () => ({
-	useTranslation: () => ({
+// Mock i18n translation context
+jest.mock("@src/i18n/TranslationContext", () => ({
+	useAppTranslation: () => ({
 		t: (key: string) => key,
 	}),
 }))
 
-// Use jest.doMock with { virtual: true } to mock a non-existent module.
-// This mock factory will be used when '../Slider' is imported.
-jest.mock("../ui/slider", () => ({
-	__esModule: true,
+// Mock UI components
+jest.mock("@src/components/ui", () => ({
 	Slider: jest.fn((props) => <div data-testid="mock-slider" {...props} />),
 }))
 
 // Import the mocked Slider *after* jest.mock
 // We need to refer to it for assertions and clearing.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const MockedSlider = require("../ui/slider").Slider as jest.Mock
+const MockedSlider = jest.mocked(Slider)
 
 describe("MaxOutputTokensControl", () => {
 	const mockSetApiConfigurationField = jest.fn()
-	const mockApiConfiguration: ApiConfiguration = {
+	const mockApiConfiguration: ProviderSettings = {
 		apiProvider: "openai",
-		openAiModelId: "test-model",
-		modelTemperature: 0.5,
+		apiModelId: "test-model",
 		modelMaxTokens: undefined,
-		modelMaxThinkingTokens: undefined,
 	}
 
 	beforeEach(() => {
@@ -66,7 +64,7 @@ describe("MaxOutputTokensControl", () => {
 		const modelInfo: Partial<ModelInfo> = {
 			maxTokens: 16000,
 		}
-		const apiConfigurationWithOverride: ApiConfiguration = {
+		const apiConfigurationWithOverride: ProviderSettings = {
 			...mockApiConfiguration,
 			modelMaxTokens: 10000, // Override the default maxTokens
 		}
@@ -86,11 +84,11 @@ describe("MaxOutputTokensControl", () => {
 		expect(screen.getByText(expectedValue.toString())).toBeInTheDocument()
 
 		// Assert that the label is displayed (using the mocked translation key)
-		expect(screen.getByText("providers.customModel.maxTokens.label")).toBeInTheDocument()
+		expect(screen.getByText("settings:thinkingBudget.maxTokens")).toBeInTheDocument()
 	})
 
 	// Make the test async to use dynamic import
-	it("should pass min={8192} to the Slider component when rendered", async () => {
+	it("should pass min={2048} to the Slider component when rendered", async () => {
 		// Dynamically import Slider; it will be the mocked version due to jest.doMock
 		// Note: For this to work, the test function must be async and you await the import.
 		// However, for prop checking on a mock function, we can directly use the
@@ -117,7 +115,7 @@ describe("MaxOutputTokensControl", () => {
 		// This test is expected to fail because Slider is not yet used or not with this prop.
 		expect(MockedSlider).toHaveBeenCalledWith(
 			expect.objectContaining({
-				min: 8192,
+				min: 2048,
 			}),
 			expect.anything(), // Context for React components
 		)
@@ -178,7 +176,7 @@ describe("MaxOutputTokensControl", () => {
 			const modelInfo: Partial<ModelInfo> = {
 				maxTokens: 32000, // This should be ignored
 			}
-			const apiConfigurationWithOverride: ApiConfiguration = {
+			const apiConfigurationWithOverride: ProviderSettings = {
 				...mockApiConfiguration,
 				modelMaxTokens: 10000,
 			}
@@ -203,7 +201,7 @@ describe("MaxOutputTokensControl", () => {
 			const modelInfo: Partial<ModelInfo> = {
 				maxTokens: 16000, // This should be used
 			}
-			const apiConfigurationWithoutOverride: ApiConfiguration = {
+			const apiConfigurationWithoutOverride: ProviderSettings = {
 				...mockApiConfiguration,
 				modelMaxTokens: undefined,
 			}
@@ -242,7 +240,7 @@ describe("MaxOutputTokensControl", () => {
 			// MockedSlider.mock.calls[0][0] gives us the props of the first render call.
 			const sliderProps = MockedSlider.mock.calls[0][0]
 			const newValue = [20000]
-			sliderProps.onValueChange(newValue)
+			sliderProps.onValueChange?.(newValue)
 
 			// Assert that setApiConfigurationField was called with the correct arguments
 			expect(mockSetApiConfigurationField).toHaveBeenCalledWith("modelMaxTokens", newValue[0])

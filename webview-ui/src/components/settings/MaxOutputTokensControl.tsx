@@ -1,15 +1,17 @@
 import React from "react"
-import { ApiConfiguration, ModelInfo } from "@roo/shared/api"
-import { Slider } from "../ui/slider"
-import { useTranslation } from "react-i18next"
+
+import { type ProviderSettings, type ModelInfo } from "@roo-code/types"
+
+import { useAppTranslation } from "@src/i18n/TranslationContext"
+import { Slider } from "@src/components/ui"
 
 interface MaxOutputTokensControlProps {
-	apiConfiguration: ApiConfiguration
-	setApiConfigurationField: <K extends keyof ApiConfiguration>(field: K, value: ApiConfiguration[K]) => void
+	apiConfiguration: ProviderSettings
+	setApiConfigurationField: <K extends keyof ProviderSettings>(field: K, value: ProviderSettings[K]) => void
 	modelInfo?: ModelInfo
 }
 
-const MIN_OUTPUT_TOKENS = 8192
+const MIN_OUTPUT_TOKENS = 2048
 const STEP_OUTPUT_TOKENS = 1024
 
 export const MaxOutputTokensControl: React.FC<MaxOutputTokensControlProps> = ({
@@ -17,7 +19,7 @@ export const MaxOutputTokensControl: React.FC<MaxOutputTokensControlProps> = ({
 	setApiConfigurationField,
 	modelInfo,
 }) => {
-	const { t } = useTranslation()
+	const { t } = useAppTranslation()
 	const shouldRender = modelInfo && typeof modelInfo.maxTokens === "number" && modelInfo.maxTokens > 0
 
 	if (!shouldRender) {
@@ -26,20 +28,18 @@ export const MaxOutputTokensControl: React.FC<MaxOutputTokensControlProps> = ({
 
 	const currentMaxOutputTokens = apiConfiguration.modelMaxTokens ?? modelInfo.maxTokens!
 
-	// Basic structure for now, will be expanded in later tasks.
 	return (
-		<div data-testid="max-output-tokens-control">
-			<label className="block mb-2">{t("providers.customModel.maxTokens.label")}</label>
-			<div className="flex items-center space-x-2">
+		<div className="flex flex-col gap-1" data-testid="max-output-tokens-control">
+			<div className="font-medium">{t("settings:thinkingBudget.maxTokens")}</div>
+			<div className="flex items-center gap-1">
 				<Slider
-					className="flex-grow"
 					min={MIN_OUTPUT_TOKENS}
 					max={modelInfo.maxTokens!}
 					step={STEP_OUTPUT_TOKENS}
 					value={[currentMaxOutputTokens]}
 					onValueChange={([value]) => setApiConfigurationField("modelMaxTokens", value)}
 				/>
-				<div className="w-12 text-sm text-right">{currentMaxOutputTokens}</div>
+				<div className="w-12 text-sm text-center">{currentMaxOutputTokens}</div>
 			</div>
 		</div>
 	)
