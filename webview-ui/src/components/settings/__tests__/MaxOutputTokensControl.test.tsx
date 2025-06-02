@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react"
 
 import type { ProviderSettings, ModelInfo } from "@roo-code/types"
 
-import { MaxOutputTokensControl } from "./MaxOutputTokensControl"
+import { MaxOutputTokensControl } from "../MaxOutputTokensControl"
 import { Slider } from "@src/components/ui"
 
 // Mock ResizeObserver globally
