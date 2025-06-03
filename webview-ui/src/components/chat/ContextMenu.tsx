@@ -93,6 +93,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 				return <span>Terminal</span>
 			case ContextMenuOptionType.URL:
 				return <span>Paste URL to fetch contents</span>
+			case ContextMenuOptionType.Escape:
+				return <span>Escape @ symbol</span>
 			case ContextMenuOptionType.NoResults:
 				return <span>No results found</span>
 			case ContextMenuOptionType.Git:
@@ -175,6 +177,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 				return "terminal"
 			case ContextMenuOptionType.URL:
 				return "link"
+			case ContextMenuOptionType.Escape:
+				return "close"
 			case ContextMenuOptionType.Git:
 				return "git-commit"
 			case ContextMenuOptionType.NoResults:

@@ -97,6 +97,7 @@ export enum ContextMenuOptionType {
 	Git = "git",
 	NoResults = "noResults",
 	Mode = "mode", // Add mode type
+	Escape = "escape", // Add escape type
 }
 
 export interface ContextMenuQueryItem {
@@ -190,6 +191,7 @@ export function getContextMenuOptions(
 			{ type: ContextMenuOptionType.Folder },
 			{ type: ContextMenuOptionType.File },
 			{ type: ContextMenuOptionType.Git },
+			{ type: ContextMenuOptionType.Escape },
 		]
 	}
 
