@@ -275,16 +275,20 @@ const ChatTextArea = forwardRef<HTMLTextAreaElement, ChatTextAreaProps>(
 					const newCursorPosition = newValue.indexOf(" ", mentionIndex + insertValue.length) + 1
 					setCursorPosition(newCursorPosition)
 					setIntendedCursorPosition(newCursorPosition)
-				} else if (type === ContextMenuOptionType.Escape) {
+				}
+
+				if (type === ContextMenuOptionType.Escape) {
 					// Replace @ with \@ and position cursor after the escaped sequence
-					const beforeCursor = textAreaRef.current.value.substring(0, cursorPosition - 1) // -1 to remove the '@'
-					const afterCursor = textAreaRef.current.value.substring(cursorPosition)
-					const newValue = beforeCursor + "\\@" + afterCursor
-					setInputValue(newValue)
-					// Position cursor after the escaped '@'
-					const newCaretPosition = beforeCursor.length + 2 // +2 for '\@'
-					setCursorPosition(newCaretPosition)
-					setIntendedCursorPosition(newCaretPosition)
+					if (textAreaRef.current) {
+						const beforeCursor = textAreaRef.current.value.substring(0, cursorPosition - 1) // -1 to remove the '@'
+						const afterCursor = textAreaRef.current.value.substring(cursorPosition)
+						const newValue = beforeCursor + "\\@" + afterCursor
+						setInputValue(newValue)
+						// Position cursor after the escaped '@'
+						const newCaretPosition = beforeCursor.length + 2 // +2 for '\@'
+						setCursorPosition(newCaretPosition)
+						setIntendedCursorPosition(newCaretPosition)
+					}
 
 					// Scroll to cursor.
 					setTimeout(() => {
